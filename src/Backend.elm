@@ -123,14 +123,8 @@ update msg model =
 
 
 toId : SessionId -> ClientId -> SessionId
-toId sessionId clientId =
-    (let
-        _ =
-            Debug.todo
-     in
-     always sessionId
-    )
-        clientId
+toId sessionId _ =
+    sessionId
 
 
 defaultHomepageModel : HomepageModel
