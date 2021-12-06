@@ -489,7 +489,7 @@ viewCode attrs =
                     , Border.color <| Element.rgb 0 0 0
                     ]
                     (Element.with .colorblindMode <| \colorblindMode ->
-                    if colorblindMode && digit > 0 then
+                    if colorblindMode && digit >= 0 then
                         el [ Font.color fgcolor, centerX, centerY ] <|
                             (text <| String.fromInt <| 1 + digit)
 
