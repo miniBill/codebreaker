@@ -3,7 +3,7 @@ module Frontend exposing (..)
 import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav exposing (Key)
 import Dict
-import Element.WithContext as Element exposing (alignTop, centerX, centerY, el, fill, height, inFront, padding, paddingXY, px, spacing, text, width)
+import Element.WithContext as Element exposing (alignRight, alignTop, centerX, centerY, el, fill, height, inFront, padding, paddingXY, px, spacing, text, width)
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
 import Element.WithContext.Font as Font
@@ -235,7 +235,7 @@ viewPlaying playingModel =
                             False
                 )
       then
-        Theme.button [] { onPress = NewGame, label = text "New game" }
+        Theme.button [ centerX ] { onPress = NewGame, label = text "New game" }
 
       else
         Element.none
@@ -338,9 +338,9 @@ viewHistory codeLength maxHeight moves =
 
 viewHistoryLine : Int -> Int -> ( Code, Answer ) -> Element msg
 viewHistoryLine codeLength index ( code, answer ) =
-    Theme.row [ padding 0 ]
-        [ text <| String.fromInt index
-        , viewCode [ padding 0 ] (padCode codeLength code)
+    Theme.row [ padding 0, width fill ]
+        [ el [ alignRight, Element.moveUp 2 ] <| text <| String.fromInt index
+        , viewCode [ alignRight, padding 0 ] (padCode codeLength code)
         , viewAnswer codeLength answer
         ]
 
@@ -438,7 +438,7 @@ codeInput { codeLength, colors } code =
                             , label =
                                 Element.with .colorblindMode <| \colorblindMode ->
                                 if colorblindMode then
-                                    el [ Font.color fgcolor, centerX, centerY ] <|
+                                    el [ Font.color fgcolor, centerX, centerY, Element.moveUp 2 ] <|
                                         (text <| String.fromInt <| 1 + colorIndex)
 
                                 else
@@ -486,7 +486,7 @@ viewCode attrs =
                     ]
                     (Element.with .colorblindMode <| \colorblindMode ->
                     if colorblindMode && digit >= 0 then
-                        el [ Font.color fgcolor, centerX, centerY ] <|
+                        el [ Font.color fgcolor, centerX, centerY, Element.moveUp 2 ] <|
                             (text <| String.fromInt <| 1 + digit)
 
                     else

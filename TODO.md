@@ -3,3 +3,4 @@
 3. 3 players
 4. removing stale games
 5. AI
+6. Update spectators
