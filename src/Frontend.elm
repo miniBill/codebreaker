@@ -8,7 +8,7 @@ import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
 import Element.WithContext.Font as Font
 import Element.WithContext.Input as Input exposing (username)
-import Lamdera exposing (ClientId)
+import Lamdera
 import List.Extra
 import Theme exposing (Attribute, Element)
 import Types exposing (..)
@@ -154,13 +154,18 @@ view model =
 viewPlaying : PlayingFrontendModel -> List (Element FrontendMsg)
 viewPlaying playingModel =
     let
-        meView =
+        meViews =
             case Dict.get playingModel.me playingModel.shared.players of
-                Nothing ->
-                    el [ alignTop ] <| text "Spectating"
-
                 Just me ->
-                    viewMePlaying playingModel.shared.codeLength maxHeight me
+                    viewMePlaying
+                        { codeLength = playingModel.shared.codeLength
+                        , maxHeight = maxHeight
+                        , colors = playingModel.shared.colors
+                        }
+                        me
+
+                Nothing ->
+                    [ el [ alignTop ] <| text "Spectating" ]
 
         othersViews =
             playingModel.shared.players
@@ -183,24 +188,80 @@ viewPlaying playingModel =
 
         Just code ->
             Theme.row [ padding 0, centerX ] [ text "Your code: ", viewCode [ Theme.borderWidth ] code ]
-    , Theme.wrappedRow [ padding 0, centerX ] (meView :: othersViews)
+    , Theme.wrappedRow [ padding 0, centerX ] (meViews ++ othersViews)
     ]
 
 
-viewMePlaying : Int -> Int -> { username : String, history : PlayerMoves, model : PlayerModel } -> Element msg
-viewMePlaying codeLength maxHeight { username, history, model } =
-    Theme.column [ Theme.borderWidth, Theme.borderRounded, height fill ]
-        [ el [ Font.bold, centerX ] <| text "You"
-        , viewHistory codeLength maxHeight history
-        ]
+viewMePlaying :
+    { codeLength : Int, maxHeight : Int, colors : Int }
+    -> { username : String, history : PlayerMoves, model : PlayerModel }
+    -> List (Element FrontendMsg)
+viewMePlaying ({ codeLength, maxHeight } as config) data =
+    let
+        shared =
+            viewPlayingPlayer
+                codeLength
+                maxHeight
+                { data | username = "You" }
+                (case data.model of
+                    Won _ ->
+                        [ text "You guess the code!" ]
+
+                    Guessing _ ->
+                        [ text "Still guessing..." ]
+                )
+    in
+    case data.model of
+        Won _ ->
+            [ shared ]
+
+        Guessing { current } ->
+            [ shared
+            , Theme.column
+                [ Theme.borderRounded
+                , Theme.borderWidth
+                , alignTop
+                ]
+                [ el [ centerX, Font.bold ] <| text "Your next guess:"
+                , Element.map SetCode <|
+                    codeInput config current
+                ]
+            ]
 
 
 viewOther : Int -> Int -> { username : String, history : PlayerMoves, model : PlayerModel } -> Element msg
-viewOther codeLength maxHeight { username, history, model } =
-    Theme.column [ Theme.borderWidth, Theme.borderRounded, height fill ]
-        [ el [ Font.bold, centerX ] <| text username
-        , viewHistory codeLength maxHeight history
+viewOther codeLength maxHeight data =
+    viewPlayingPlayer
+        codeLength
+        maxHeight
+        data
+        (case data.model of
+            Won _ ->
+                [ text "They guessed the code!" ]
+
+            Guessing _ ->
+                [ text "Still guessing..." ]
+        )
+
+
+viewPlayingPlayer : Int -> Int -> { username : String, history : PlayerMoves, model : PlayerModel } -> List (Element msg) -> Element msg
+viewPlayingPlayer codeLength maxHeight { username, history, model } rest =
+    Theme.column
+        [ Theme.borderWidth
+        , Theme.borderRounded
+        , height fill
+        , case model of
+            Won _ ->
+                Background.color <| Element.rgb 0.7 0.7 1
+
+            Guessing _ ->
+                Background.color <| Element.rgb 1 1 1
         ]
+        ([ el [ Font.bold, centerX ] <| text username
+         , viewHistory codeLength maxHeight history
+         ]
+            ++ rest
+        )
 
 
 viewHistory : Int -> Int -> PlayerMoves -> Element msg
