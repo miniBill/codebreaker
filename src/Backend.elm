@@ -412,6 +412,11 @@ updateFromFrontend sessionId clientId msg model =
                         ( BackendPlaying playing, Cmd.none )
                 )
 
+        TBHome ->
+            ( { model | inGame = Dict.remove id model.inGame }
+            , Lamdera.sendToFrontend id <| TFReplaceModel (FrontendHomepage defaultHomepageModel)
+            )
+
 
 getAnswer : Code -> Code -> Answer
 getAnswer code guess =

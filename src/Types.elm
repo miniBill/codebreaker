@@ -137,6 +137,7 @@ type FrontendMsg
     | Submit
     | ColorblindMode Bool
     | NewGame
+    | Home
 
 
 type ToBackend
@@ -144,6 +145,7 @@ type ToBackend
     | TBCode Code
     | TBSubmit
     | TBNewGame
+    | TBHome
 
 
 type BackendMsg

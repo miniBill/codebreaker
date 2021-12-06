@@ -3,7 +3,7 @@ module Frontend exposing (..)
 import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav exposing (Key)
 import Dict
-import Element.WithContext as Element exposing (alignTop, centerX, centerY, el, fill, height, padding, paddingXY, px, spacing, text, width)
+import Element.WithContext as Element exposing (alignTop, centerX, centerY, el, fill, height, inFront, padding, paddingXY, px, spacing, text, width)
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
 import Element.WithContext.Font as Font
@@ -93,6 +93,9 @@ update msg model =
         NewGame ->
             ( model, Lamdera.sendToBackend TBNewGame )
 
+        Home ->
+            ( model, Lamdera.sendToBackend TBHome )
+
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 updateFromBackend msg model =
@@ -123,13 +126,20 @@ view : FrontendModel -> Element FrontendMsg
 view model =
     let
         header =
-            el
+            Theme.row
                 [ width fill
                 , Font.bold
                 , Font.center
                 , Theme.fontSizes.big
+                , padding 0
+                , inFront <|
+                    Theme.button []
+                        { onPress = Home
+                        , label = text "🏠"
+                        }
                 ]
-                (text <| title model)
+                [ el [ centerX ] <| text <| title model
+                ]
 
         errors =
             if String.isEmpty model.error then
