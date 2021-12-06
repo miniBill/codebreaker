@@ -293,10 +293,9 @@ viewHistory : Int -> Int -> PlayerMoves -> Element msg
 viewHistory codeLength maxHeight moves =
     let
         paddedMoves =
-            moves ++ List.repeat (maxHeight - List.length moves) ( [], { white = 0, black = 0 } )
+            List.repeat (maxHeight - List.length moves) ( [], { white = 0, black = 0 } ) ++ moves
     in
     paddedMoves
-        |> List.reverse
         |> List.map (viewHistoryLine codeLength)
         |> Theme.column [ padding 0 ]
 
