@@ -90,6 +90,9 @@ update msg model =
         ColorblindMode colorblindMode ->
             ( { model | colorblindMode = colorblindMode }, Cmd.none )
 
+        NewGame ->
+            ( model, Lamdera.sendToBackend TBNewGame )
+
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 updateFromBackend msg model =
@@ -203,6 +206,23 @@ viewPlaying playingModel =
         Just code ->
             Theme.row [ padding 0, centerX ] [ text "Your code: ", viewCode [ Theme.borderWidth ] code ]
     , Theme.wrappedRow [ padding 0, centerX ] (meViews ++ othersViews)
+    , if
+        playingModel.shared.players
+            |> Dict.values
+            |> List.all
+                (\{ model } ->
+                    case model of
+                        Won _ ->
+                            True
+
+                        Guessing _ ->
+                            False
+                )
+      then
+        Theme.button [] { onPress = NewGame, label = text "New game" }
+
+      else
+        Element.none
     ]
 
 

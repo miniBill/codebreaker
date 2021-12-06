@@ -373,6 +373,45 @@ updateFromFrontend sessionId clientId msg model =
                                     )
                 )
 
+        TBNewGame ->
+            updateGame id
+                model
+                (\preparing -> ( BackendPreparing preparing, Cmd.none ))
+                (\({ shared } as playing) ->
+                    if
+                        List.all
+                            (\player ->
+                                case player.model of
+                                    Won _ ->
+                                        True
+
+                                    Guessing _ ->
+                                        False
+                            )
+                            (Dict.values shared.players)
+                    then
+                        ( BackendPreparing
+                            { shared =
+                                { codeLength = playing.shared.codeLength
+                                , colors = playing.shared.colors
+                                }
+                            , players =
+                                Dict.map
+                                    (\_ { username } ->
+                                        { code = []
+                                        , ready = False
+                                        , username = username
+                                        }
+                                    )
+                                    playing.shared.players
+                            }
+                        , Cmd.none
+                        )
+
+                    else
+                        ( BackendPlaying playing, Cmd.none )
+                )
+
 
 getAnswer : Code -> Code -> Answer
 getAnswer code guess =

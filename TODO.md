@@ -4,5 +4,4 @@
 4. mark the winner
 5. 3 players
 6. removing stale games
-7. "new game" button
-8. play against nobody
+7. "home" button

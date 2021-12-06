@@ -136,12 +136,14 @@ type FrontendMsg
     | SetCode Code
     | Submit
     | ColorblindMode Bool
+    | NewGame
 
 
 type ToBackend
     = TBUpsertGame HomepageModel
     | TBCode Code
     | TBSubmit
+    | TBNewGame
 
 
 type BackendMsg
