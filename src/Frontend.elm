@@ -299,8 +299,8 @@ viewOther ({ codeLength } as config) data =
                 [ text "They guessed the code!" ]
 
             Guessing { current } ->
-                [ text "Is guessing"
-                , viewCode [ padding 0 ] (padCode codeLength current)
+                [ el [ centerX ] <| text "Is guessing"
+                , viewCode [ centerX, padding 0 ] (padCode codeLength current)
                 ]
         )
 
