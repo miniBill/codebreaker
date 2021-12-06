@@ -154,15 +154,16 @@ view model =
 viewPlaying : PlayingFrontendModel -> List (Element FrontendMsg)
 viewPlaying playingModel =
     let
+        config =
+            { codeLength = playingModel.shared.codeLength
+            , maxHeight = maxHeight
+            , colors = playingModel.shared.colors
+            }
+
         meViews =
             case Dict.get playingModel.me playingModel.shared.players of
                 Just me ->
-                    viewMePlaying
-                        { codeLength = playingModel.shared.codeLength
-                        , maxHeight = maxHeight
-                        , colors = playingModel.shared.colors
-                        }
-                        me
+                    viewMePlaying config me
 
                 Nothing ->
                     [ el [ alignTop ] <| text "Spectating" ]
@@ -172,7 +173,7 @@ viewPlaying playingModel =
                 |> Dict.toList
                 |> List.filter (\( i, _ ) -> i /= playingModel.me)
                 |> List.map Tuple.second
-                |> List.map (viewOther playingModel.shared.codeLength maxHeight)
+                |> List.map (viewOther config)
 
         maxHeight =
             playingModel.shared.players
@@ -196,12 +197,10 @@ viewMePlaying :
     { codeLength : Int, maxHeight : Int, colors : Int }
     -> { username : String, history : PlayerMoves, model : PlayerModel }
     -> List (Element FrontendMsg)
-viewMePlaying ({ codeLength, maxHeight } as config) data =
+viewMePlaying ({ codeLength } as config) data =
     let
         shared =
-            viewPlayingPlayer
-                codeLength
-                maxHeight
+            viewPlayingPlayer config
                 { data | username = "You" }
                 (case data.model of
                     Won _ ->
@@ -209,7 +208,7 @@ viewMePlaying ({ codeLength, maxHeight } as config) data =
 
                     Guessing { current } ->
                         [ text "Still guessing..."
-                        , viewCode [] (padCode codeLength current)
+                        , viewCode [ padding 0 ] (padCode codeLength current)
                         ]
                 )
     in
@@ -239,11 +238,12 @@ viewMePlaying ({ codeLength, maxHeight } as config) data =
             ]
 
 
-viewOther : Int -> Int -> { username : String, history : PlayerMoves, model : PlayerModel } -> Element msg
-viewOther codeLength maxHeight data =
-    viewPlayingPlayer
-        codeLength
-        maxHeight
+viewOther :
+    { a | codeLength : Int, maxHeight : Int }
+    -> { username : String, history : PlayerMoves, model : PlayerModel }
+    -> Element msg
+viewOther ({ codeLength } as config) data =
+    viewPlayingPlayer config
         data
         (case data.model of
             Won _ ->
@@ -251,13 +251,13 @@ viewOther codeLength maxHeight data =
 
             Guessing { current } ->
                 [ text "Is guessing"
-                , viewCode [] (padCode codeLength current)
+                , viewCode [ padding 0 ] (padCode codeLength current)
                 ]
         )
 
 
-viewPlayingPlayer : Int -> Int -> { username : String, history : PlayerMoves, model : PlayerModel } -> List (Element msg) -> Element msg
-viewPlayingPlayer codeLength maxHeight { username, history, model } rest =
+viewPlayingPlayer : { a | codeLength : Int, maxHeight : Int } -> { username : String, history : PlayerMoves, model : PlayerModel } -> List (Element msg) -> Element msg
+viewPlayingPlayer { codeLength, maxHeight } { username, history, model } rest =
     Theme.column
         [ Theme.borderWidth
         , Theme.borderRounded
@@ -290,7 +290,7 @@ viewHistory codeLength maxHeight moves =
 
 viewHistoryLine : Int -> ( Code, Answer ) -> Element msg
 viewHistoryLine codeLength ( code, answer ) =
-    Theme.row [ padding 0 ] [ viewCode [] (padCode codeLength code), viewAnswer codeLength answer ]
+    Theme.row [ padding 0 ] [ viewCode [ padding 0 ] (padCode codeLength code), viewAnswer codeLength answer ]
 
 
 viewAnswer : Int -> Answer -> Element msg

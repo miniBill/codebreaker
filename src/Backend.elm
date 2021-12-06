@@ -302,7 +302,20 @@ updateFromFrontend sessionId clientId msg model =
                         Cmd.none
                     )
                 )
-                (\playing -> ( Debug.todo "TBSubmit (playing)", Cmd.none ))
+                (\playing ->
+                    case Dict.get id playing.shared.players of
+                        Nothing ->
+                            ( BackendPlaying playing, Cmd.none )
+
+                        Just player ->
+                            let
+                                newGame =
+                                    playing
+                            in
+                            ( BackendPlaying newGame
+                            , Cmd.none
+                            )
+                )
 
 
 updateGame :
