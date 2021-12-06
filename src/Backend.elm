@@ -324,7 +324,7 @@ updateFromFrontend sessionId clientId msg model =
                             }
                     in
                     ( BackendPreparing newGame
-                    , if List.all .ready <| Dict.values newGame.players then
+                    , if Dict.size newGame.players >= 2 && List.all .ready (Dict.values newGame.players) then
                         Time.now |> Task.perform (StartGame id)
 
                       else

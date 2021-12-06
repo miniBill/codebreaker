@@ -1,5 +1,6 @@
 module Theme exposing (Attr, Attribute, Element, borderRounded, borderWidth, button, colors, column, fontSizes, padding, row, rythm, spacing, wrappedRow)
 
+import Color
 import Element.WithContext as Element exposing (Color)
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
@@ -87,14 +88,32 @@ fontSizes =
     }
 
 
+fontColor : Color.Color -> Color.Color
+fontColor =
+    Color.toRgba
+        >> (\c ->
+                if 0.2126 * c.red + 0.7152 * c.green + 0.0722 * c.blue >= 0.5 then
+                    Color.black
+
+                else
+                    Color.white
+           )
+
+
 colors : List ( Color, Color )
 colors =
-    [ ( Element.rgb 1 1 1, Element.rgb 1 0 0 )
-    , ( Element.rgb 0 0 0, Element.rgb 0 1 0 )
-    , ( Element.rgb 1 1 1, Element.rgb 0 0 1 )
-    , ( Element.rgb 0 0 0, Element.rgb 1 1 0 )
-    , ( Element.rgb 0 0 0, Element.rgb 1 0 1 )
-    , ( Element.rgb 1 1 1, Element.rgb 0 0 0 )
-    , ( Element.rgb 0 0 0, Element.rgb 1 1 1 )
-    , ( Element.rgb 0 0 0, Element.rgb 1 0.5 0 )
+    [ Color.rgb 1 0 0
+    , Color.rgb 0 1 0
+    , Color.rgb 0 0 1
+    , Color.rgb 1 1 0
+    , Color.rgb 1 0 1
+    , Color.rgb 0 0 0
+    , Color.rgb 1 1 1
+    , Color.rgb 1 0.5 0
     ]
+        |> List.map (\c -> ( toElmUi <| fontColor c, toElmUi c ))
+
+
+toElmUi : Color.Color -> Color
+toElmUi =
+    Color.toRgba >> Element.fromRgb
