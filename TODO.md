@@ -1,5 +1,5 @@
-1. validate input on game creation/join
-2. game link / game URL
-3. mark the winner
-4. 3 players
-5. removing stale games
+1. game link / game URL
+2. mark the winner
+3. 3 players
+4. removing stale games
+5. AI

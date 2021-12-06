@@ -200,11 +200,12 @@ updateFromFrontend sessionId clientId msg model =
                             )
             in
             case
-                ( checkInRange 2 (List.length Theme.colors) <| withDefault "8" data.colors
+                ( ( String.isEmpty data.username, String.isEmpty data.gameName )
+                , checkInRange 2 (List.length Theme.colors) <| withDefault "8" data.colors
                 , checkInRange 2 20 <| withDefault "4" data.codeLength
                 )
             of
-                ( Just colors, Just codeLength ) ->
+                ( ( False, False ), Just colors, Just codeLength ) ->
                     let
                         newGame =
                             case Dict.get data.gameName model.games of
@@ -245,11 +246,17 @@ updateFromFrontend sessionId clientId msg model =
                     , Lamdera.sendToFrontend id <| TFReplaceModel <| toInnerFrontendModel id data.gameName newGame
                     )
 
-                ( Nothing, _ ) ->
+                ( _, Nothing, _ ) ->
                     ( model, Lamdera.sendToFrontend id <| TFError "Invalid number of colors" )
 
-                ( _, Nothing ) ->
+                ( _, _, Nothing ) ->
                     ( model, Lamdera.sendToFrontend id <| TFError "Invalid code length" )
+
+                ( ( True, _ ), _, _ ) ->
+                    ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty user name" )
+
+                ( ( _, True ), _, _ ) ->
+                    ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty game name" )
 
         TBCode code ->
             updateGame id

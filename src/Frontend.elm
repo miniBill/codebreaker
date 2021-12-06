@@ -155,21 +155,13 @@ view model =
                 [ el [ centerX ] <| text <| title model
                 ]
 
-        errors =
-            if String.isEmpty model.error then
-                Element.none
-
-            else
-                el [ Theme.padding, Background.color <| Element.rgb 1 0.8 0.8, width fill ]
-                    (text model.error)
-
         body =
             case model.inner of
                 FrontendConnecting ->
                     [ text "Connecting to server" ]
 
                 FrontendHomepage homepage ->
-                    viewHomepage homepage
+                    viewHomepage model.error homepage
 
                 FrontendPreparing preparing ->
                     viewPreparing preparing
@@ -188,7 +180,7 @@ view model =
             ]
     in
     Theme.column [ width fill, height fill ]
-        (header :: errors :: body ++ accessibility)
+        (header :: body ++ accessibility)
 
 
 viewPlaying : PlayingFrontendModel -> List (Element FrontendMsg)
@@ -499,9 +491,17 @@ viewCode attrs =
             )
 
 
-viewHomepage : HomepageModel -> List (Element FrontendMsg)
-viewHomepage homepageModel =
+viewHomepage : String -> HomepageModel -> List (Element FrontendMsg)
+viewHomepage error homepageModel =
     let
+        errorView =
+            if String.isEmpty error then
+                Element.none
+
+            else
+                el [ Theme.padding, Background.color <| Element.rgb 1 0.8 0.8, width fill ]
+                    (text error)
+
         isInt x =
             String.toInt x /= Nothing
 
@@ -557,6 +557,7 @@ viewHomepage homepageModel =
             , placeholder = "8"
             }
         ]
+    , errorView
     , row
         [ Theme.button [ width fill ]
             { onPress = UpsertGame
