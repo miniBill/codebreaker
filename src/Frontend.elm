@@ -295,24 +295,24 @@ viewHistoryLine codeLength ( code, answer ) =
 
 viewAnswer : Int -> Answer -> Element msg
 viewAnswer codeLength { black, white } =
-    List.repeat black (Element.rgb 0 0 0)
-        ++ List.repeat white (Element.rgb 1 1 1)
-        ++ List.repeat (codeLength - black - white) (Element.rgb 0.7 0.7 0.7)
+    List.repeat black ( Element.rgb 0 0 0, Element.rgb 0 0 0 )
+        ++ List.repeat white ( Element.rgb 0 0 0, Element.rgb 1 1 1 )
+        ++ List.repeat (codeLength - black - white) ( Element.rgb 0.6 0.6 0.6, Element.rgb 0.6 0.6 0.6 )
         |> List.map
-            (\color ->
+            (\( border, color ) ->
                 el
-                    [ width <| px 5
-                    , height <| px 5
-                    , Border.rounded 10
+                    [ width <| px 8
+                    , height <| px 8
+                    , Border.rounded 20
                     , Border.width 1
-                    , Border.color <| Element.rgb 0 0 0
+                    , Border.color border
                     , Background.color color
                     ]
                     Element.none
             )
         |> List.Extra.greedyGroupsOf (codeLength // 2)
-        |> List.map (Element.row [ spacing 1 ])
-        |> Element.column [ spacing 1 ]
+        |> List.map (Element.row [ spacing 2 ])
+        |> Element.column [ spacing 2 ]
 
 
 viewPreparing : PreparingFrontendModel -> List (Element FrontendMsg)
