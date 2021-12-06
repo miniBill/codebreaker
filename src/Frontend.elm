@@ -332,13 +332,17 @@ viewHistory codeLength maxHeight moves =
             List.repeat (maxHeight - List.length moves) ( [], { white = 0, black = 0 } ) ++ moves
     in
     paddedMoves
-        |> List.map (viewHistoryLine codeLength)
+        |> List.indexedMap (viewHistoryLine codeLength)
         |> Theme.column [ padding 0 ]
 
 
-viewHistoryLine : Int -> ( Code, Answer ) -> Element msg
-viewHistoryLine codeLength ( code, answer ) =
-    Theme.row [ padding 0 ] [ viewCode [ padding 0 ] (padCode codeLength code), viewAnswer codeLength answer ]
+viewHistoryLine : Int -> Int -> ( Code, Answer ) -> Element msg
+viewHistoryLine codeLength index ( code, answer ) =
+    Theme.row [ padding 0 ]
+        [ text <| String.fromInt index
+        , viewCode [ padding 0 ] (padCode codeLength code)
+        , viewAnswer codeLength answer
+        ]
 
 
 viewAnswer : Int -> Answer -> Element msg
