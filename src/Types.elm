@@ -134,7 +134,7 @@ type FrontendMsg
     | HomepageMsg HomepageModel
     | UpsertGame
     | SetCode Code
-    | Ready
+    | Submit
 
 
 type ToBackend

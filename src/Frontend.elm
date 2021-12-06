@@ -84,7 +84,7 @@ update msg model =
         SetCode code ->
             ( model, Lamdera.sendToBackend <| TBCode code )
 
-        Ready ->
+        Submit ->
             ( model, Lamdera.sendToBackend TBSubmit )
 
 
@@ -170,7 +170,7 @@ viewPlaying playingModel =
         othersViews =
             playingModel.shared.players
                 |> Dict.toList
-                |> List.Extra.filterNot (\( i, _ ) -> i /= playingModel.me)
+                |> List.filter (\( i, _ ) -> i /= playingModel.me)
                 |> List.map Tuple.second
                 |> List.map (viewOther playingModel.shared.codeLength maxHeight)
 
@@ -207,8 +207,10 @@ viewMePlaying ({ codeLength, maxHeight } as config) data =
                     Won _ ->
                         [ text "You guess the code!" ]
 
-                    Guessing _ ->
-                        [ text "Still guessing..." ]
+                    Guessing { current } ->
+                        [ text "Still guessing..."
+                        , viewCode [] (padCode codeLength current)
+                        ]
                 )
     in
     case data.model of
@@ -225,6 +227,14 @@ viewMePlaying ({ codeLength, maxHeight } as config) data =
                 [ el [ centerX, Font.bold ] <| text "Your next guess:"
                 , Element.map SetCode <|
                     codeInput config current
+                , if
+                    List.all ((/=) -1) current
+                        && (List.length current == codeLength)
+                  then
+                    Theme.button [ centerX ] { onPress = Submit, label = text "Submit" }
+
+                  else
+                    Element.none
                 ]
             ]
 
@@ -239,8 +249,10 @@ viewOther codeLength maxHeight data =
             Won _ ->
                 [ text "They guessed the code!" ]
 
-            Guessing _ ->
-                [ text "Still guessing..." ]
+            Guessing { current } ->
+                [ text "Is guessing"
+                , viewCode [] (padCode codeLength current)
+                ]
         )
 
 
@@ -320,7 +332,7 @@ viewPreparing ({ me } as preparingModel) =
                     && (List.length me.code == preparingModel.shared.codeLength)
                     && not me.ready
              then
-                Theme.button [ centerX ] { onPress = Ready, label = text "Ready" }
+                Theme.button [ centerX ] { onPress = Submit, label = text "Ready" }
 
              else
                 Element.none

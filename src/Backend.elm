@@ -249,7 +249,33 @@ updateFromFrontend sessionId clientId msg model =
                     , Cmd.none
                     )
                 )
-                (\playing -> ( Debug.todo "TBCode (playing)", Cmd.none ))
+                (\playing ->
+                    let
+                        shared =
+                            playing.shared
+
+                        setCode player =
+                            case player.model of
+                                Guessing _ ->
+                                    { player | model = Guessing { current = code } }
+
+                                Won _ ->
+                                    player
+                    in
+                    ( { playing
+                        | shared =
+                            { shared
+                                | players =
+                                    Dict.update
+                                        id
+                                        (Maybe.map setCode)
+                                        shared.players
+                            }
+                      }
+                        |> BackendPlaying
+                    , Cmd.none
+                    )
+                )
 
         TBSubmit ->
             updateGame id
