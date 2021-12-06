@@ -332,7 +332,7 @@ viewHistory codeLength maxHeight moves =
             List.repeat (maxHeight - List.length moves) ( [], { white = 0, black = 0 } ) ++ moves
     in
     paddedMoves
-        |> List.indexedMap (viewHistoryLine codeLength)
+        |> List.indexedMap (\index -> viewHistoryLine codeLength (maxHeight - index))
         |> Theme.column [ padding 0 ]
 
 
