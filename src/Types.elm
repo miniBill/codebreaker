@@ -40,15 +40,21 @@ type alias PreparingSharedModel =
 type alias PreparingFrontendModel =
     { shared : PreparingSharedModel
     , gameName : String
-    , code : Code
-    , ready : Bool
+    , me : PreparingUser
     , players : Dict ClientId { username : String, ready : Bool }
+    }
+
+
+type alias PreparingUser =
+    { code : Code
+    , ready : Bool
+    , username : String
     }
 
 
 type alias PreparingBackendModel =
     { shared : PreparingSharedModel
-    , players : Dict ClientId { username : String, ready : Bool, code : Code }
+    , players : Dict ClientId PreparingUser
     }
 
 

@@ -2,12 +2,13 @@ module Frontend exposing (..)
 
 import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav exposing (Key)
-import Element.WithContext as Element exposing (centerX, el, fill, height, padding, paddingXY, px, text, width)
+import Dict
+import Element.WithContext as Element exposing (alignTop, centerX, el, fill, height, padding, paddingXY, px, spacing, text, width)
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
 import Element.WithContext.Font as Font
-import Element.WithContext.Input as Input
-import Lamdera
+import Element.WithContext.Input as Input exposing (username)
+import Lamdera exposing (ClientId)
 import List.Extra
 import Theme exposing (Attribute, Element)
 import Types exposing (..)
@@ -137,35 +138,126 @@ view model =
                 FrontendConnecting ->
                     [ text "Connecting to server" ]
 
-                FrontendHomepage homepageModel ->
-                    viewHomepage homepageModel
+                FrontendHomepage homepage ->
+                    viewHomepage homepage
 
-                FrontendPreparing preparingModel ->
-                    viewPreparing preparingModel
+                FrontendPreparing preparing ->
+                    viewPreparing preparing
 
-                FrontendPlaying _ ->
-                    [ text "TODO: branch 'PlayingGame _' not implemented" ]
+                FrontendPlaying playing ->
+                    viewPlaying playing
     in
     Theme.column [ width fill, height fill ]
         (header :: errors :: body)
 
 
+viewPlaying : PlayingFrontendModel -> List (Element FrontendMsg)
+viewPlaying playingModel =
+    let
+        meView =
+            case Dict.get playingModel.me playingModel.shared.players of
+                Nothing ->
+                    el [ alignTop ] <| text "Spectating"
+
+                Just me ->
+                    viewMePlaying playingModel.shared.codeLength maxHeight me
+
+        othersViews =
+            playingModel.shared.players
+                |> Dict.toList
+                |> List.Extra.filterNot (\( i, _ ) -> i /= playingModel.me)
+                |> List.map Tuple.second
+                |> List.map (viewOther playingModel.shared.codeLength maxHeight)
+
+        maxHeight =
+            playingModel.shared.players
+                |> Dict.values
+                |> List.map (.history >> List.length >> (+) 1)
+                |> List.maximum
+                |> Maybe.withDefault 1
+                |> max 8
+    in
+    [ case playingModel.code of
+        Nothing ->
+            el [ centerX ] <| text "Spectating"
+
+        Just code ->
+            Theme.row [ padding 0, centerX ] [ text "Your code: ", viewCode [ Theme.borderWidth ] code ]
+    , Theme.wrappedRow [ padding 0, centerX ] (meView :: othersViews)
+    ]
+
+
+viewMePlaying : Int -> Int -> { username : String, history : PlayerMoves, model : PlayerModel } -> Element msg
+viewMePlaying codeLength maxHeight { username, history, model } =
+    Theme.column [ Theme.borderWidth, Theme.borderRounded, height fill ]
+        [ el [ Font.bold, centerX ] <| text "You"
+        , viewHistory codeLength maxHeight history
+        ]
+
+
+viewOther : Int -> Int -> { username : String, history : PlayerMoves, model : PlayerModel } -> Element msg
+viewOther codeLength maxHeight { username, history, model } =
+    Theme.column [ Theme.borderWidth, Theme.borderRounded, height fill ]
+        [ el [ Font.bold, centerX ] <| text username
+        , viewHistory codeLength maxHeight history
+        ]
+
+
+viewHistory : Int -> Int -> PlayerMoves -> Element msg
+viewHistory codeLength maxHeight moves =
+    let
+        paddedMoves =
+            moves ++ List.repeat (maxHeight - List.length moves) ( [], { white = 0, black = 0 } )
+    in
+    paddedMoves
+        |> List.reverse
+        |> List.map (viewHistoryLine codeLength)
+        |> Theme.column [ padding 0 ]
+
+
+viewHistoryLine : Int -> ( Code, Answer ) -> Element msg
+viewHistoryLine codeLength ( code, answer ) =
+    Theme.row [ padding 0 ] [ viewCode [] (padCode codeLength code), viewAnswer codeLength answer ]
+
+
+viewAnswer : Int -> Answer -> Element msg
+viewAnswer codeLength { black, white } =
+    List.repeat black (Element.rgb 0 0 0)
+        ++ List.repeat white (Element.rgb 1 1 1)
+        ++ List.repeat (codeLength - black - white) (Element.rgb 0.7 0.7 0.7)
+        |> List.map
+            (\color ->
+                el
+                    [ width <| px 5
+                    , height <| px 5
+                    , Border.rounded 10
+                    , Border.width 1
+                    , Border.color <| Element.rgb 0 0 0
+                    , Background.color color
+                    ]
+                    Element.none
+            )
+        |> List.Extra.greedyGroupsOf (codeLength // 2)
+        |> List.map (Element.row [ spacing 1 ])
+        |> Element.column [ spacing 1 ]
+
+
 viewPreparing : PreparingFrontendModel -> List (Element FrontendMsg)
-viewPreparing preparingModel =
-    (if preparingModel.ready then
+viewPreparing ({ me } as preparingModel) =
+    (if me.ready then
         [ el [ centerX ] <| Element.text "Wait for other players"
-        , viewCode [ Theme.borderWidth, centerX ] preparingModel.code
+        , viewCode [ Theme.borderWidth, centerX ] me.code
         ]
 
      else
-        [ el [ centerX ] <| text "Set your secret code"
-        , Element.map SetCode <| codeInput preparingModel.shared preparingModel.code
+        [ el [ centerX ] <| text <| "Set your secret code, " ++ me.username
+        , Element.map SetCode <| codeInput preparingModel.shared me.code
         ]
     )
         ++ [ if
-                List.all ((/=) -1) preparingModel.code
-                    && (List.length preparingModel.code == preparingModel.shared.codeLength)
-                    && not preparingModel.ready
+                List.all ((/=) -1) me.code
+                    && (List.length me.code == preparingModel.shared.codeLength)
+                    && not me.ready
              then
                 Theme.button [ centerX ] { onPress = Ready, label = text "Ready" }
 
@@ -178,7 +270,7 @@ codeInput : { a | codeLength : Int, colors : Int } -> Code -> Element Code
 codeInput { codeLength, colors } code =
     let
         paddedCode =
-            code ++ List.repeat (codeLength - List.length code) -1
+            padCode codeLength code
 
         digitInput index =
             Theme.colors
@@ -211,6 +303,11 @@ codeInput { codeLength, colors } code =
         [ current
         , inputs
         ]
+
+
+padCode : Int -> Code -> Code
+padCode codeLength code =
+    code ++ List.repeat (codeLength - List.length code) -1
 
 
 viewCode : List (Attribute msg) -> List Int -> Element msg

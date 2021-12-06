@@ -1,4 +1,4 @@
-module Theme exposing (Attr, Attribute, Element, borderWidth, button, colors, column, fontSizes, padding, row, rythm, spacing, wrappedRow)
+module Theme exposing (Attr, Attribute, Element, borderRounded, borderWidth, button, colors, column, fontSizes, padding, row, rythm, spacing, wrappedRow)
 
 import Element.WithContext as Element exposing (Color)
 import Element.WithContext.Background as Background

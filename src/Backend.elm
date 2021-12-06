@@ -127,8 +127,7 @@ toInnerFrontendModel id gameName game =
             FrontendPreparing
                 { shared = preparing.shared
                 , gameName = gameName
-                , code = player.code
-                , ready = player.ready
+                , me = player
                 , players =
                     Dict.map
                         (\_ { username, ready } ->
