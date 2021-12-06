@@ -87,14 +87,14 @@ fontSizes =
     }
 
 
-colors : List Color
+colors : List ( Color, Color )
 colors =
-    [ Element.rgb 1 0 0
-    , Element.rgb 0 1 0
-    , Element.rgb 0 0 1
-    , Element.rgb 1 1 0
-    , Element.rgb 1 0 1
-    , Element.rgb 0 0 0
-    , Element.rgb 1 1 1
-    , Element.rgb255 255 69 0
+    [ ( Element.rgb 1 1 1, Element.rgb 1 0 0 )
+    , ( Element.rgb 0 0 0, Element.rgb 0 1 0 )
+    , ( Element.rgb 1 1 1, Element.rgb 0 0 1 )
+    , ( Element.rgb 0 0 0, Element.rgb 1 1 0 )
+    , ( Element.rgb 0 0 0, Element.rgb 1 0 1 )
+    , ( Element.rgb 1 1 1, Element.rgb 0 0 0 )
+    , ( Element.rgb 0 0 0, Element.rgb 1 1 1 )
+    , ( Element.rgb 0 0 0, Element.rgb 1 0.5 0 )
     ]

@@ -145,6 +145,7 @@ type ToBackend
 
 type BackendMsg
     = StartGame ClientId Time.Posix
+    | GotWinTime ClientId Time.Posix
     | ClientConnected Lamdera.SessionId ClientId
     | ClientDisconnected Lamdera.SessionId ClientId
 

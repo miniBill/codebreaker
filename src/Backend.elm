@@ -87,6 +87,40 @@ update msg model =
                 )
                 (\playing -> ( BackendPlaying playing, Cmd.none ))
 
+        GotWinTime id now ->
+            updateGame id
+                model
+                (\preparing ->
+                    ( BackendPreparing preparing
+                    , Cmd.none
+                    )
+                )
+                (\({ shared } as playing) ->
+                    ( BackendPlaying
+                        { playing
+                            | shared =
+                                { shared
+                                    | players =
+                                        shared.players
+                                            |> Dict.map
+                                                (\_ player ->
+                                                    case ( player.model, player.history ) of
+                                                        ( Guessing _, { black } :: _ ) ->
+                                                            if black == shared.codeLength then
+                                                                { player | model = Won { winTime = now } }
+
+                                                            else
+                                                                player
+
+                                                        _ ->
+                                                            player
+                                                )
+                                }
+                        }
+                    , Cmd.none
+                    )
+                )
+
 
 toId : SessionId -> ClientId -> SessionId
 toId sessionId clientId =
@@ -329,12 +363,7 @@ updateFromFrontend sessionId clientId msg model =
                                         newPlayer =
                                             { player
                                                 | history = ( current, answer ) :: player.history
-                                                , model =
-                                                    if answer.black == shared.codeLength then
-                                                        Won { winTime = Debug.todo "winTime" }
-
-                                                    else
-                                                        Guessing { current = [] }
+                                                , model = Guessing { current = [] }
                                             }
 
                                         newGame =
@@ -346,7 +375,7 @@ updateFromFrontend sessionId clientId msg model =
                                             }
                                     in
                                     ( BackendPlaying newGame
-                                    , Cmd.none
+                                    , Time.now |> Task.perform (GotWinTime id)
                                     )
                 )
 

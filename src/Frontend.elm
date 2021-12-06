@@ -3,7 +3,7 @@ module Frontend exposing (..)
 import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav exposing (Key)
 import Dict
-import Element.WithContext as Element exposing (alignTop, centerX, el, fill, height, padding, paddingXY, px, spacing, text, width)
+import Element.WithContext as Element exposing (alignTop, centerX, centerY, el, fill, height, padding, paddingXY, px, spacing, text, width)
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
 import Element.WithContext.Font as Font
@@ -349,7 +349,7 @@ codeInput { codeLength, colors } code =
             Theme.colors
                 |> List.take colors
                 |> List.indexedMap
-                    (\colorIndex c ->
+                    (\colorIndex ( fgcolor, c ) ->
                         Input.button
                             [ width <| px 20
                             , height <| px 20
@@ -359,7 +359,9 @@ codeInput { codeLength, colors } code =
                             , Border.color <| Element.rgb 0 0 0
                             ]
                             { onPress = Just <| List.Extra.setAt index colorIndex paddedCode
-                            , label = Element.none
+                            , label =
+                                el [ Font.color fgcolor, centerX, centerY ] <|
+                                    (text <| String.fromInt <| 1 + colorIndex)
                             }
                     )
                 |> Theme.column [ padding 0 ]
@@ -389,19 +391,25 @@ viewCode attrs =
         << List.map
             (\digit ->
                 let
-                    color =
+                    ( fgcolor, bgcolor ) =
                         List.Extra.getAt digit Theme.colors
-                            |> Maybe.withDefault (Element.rgb 0.7 0.7 0.7)
+                            |> Maybe.withDefault ( Element.rgb 0 0 0, Element.rgb 0.7 0.7 0.7 )
                 in
                 el
                     [ width <| px 20
                     , height <| px 20
-                    , Background.color color
+                    , Background.color bgcolor
                     , Border.rounded 20
                     , Theme.borderWidth
                     , Border.color <| Element.rgb 0 0 0
                     ]
-                    Element.none
+                    (if digit < 0 then
+                        Element.none
+
+                     else
+                        el [ Font.color fgcolor, centerX, centerY ] <|
+                            (text <| String.fromInt <| 1 + digit)
+                    )
             )
 
 
