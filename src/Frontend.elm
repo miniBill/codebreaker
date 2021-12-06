@@ -166,7 +166,7 @@ viewPlaying playingModel =
                     viewMePlaying config me
 
                 Nothing ->
-                    [ el [ alignTop ] <| text "Spectating" ]
+                    []
 
         othersViews =
             playingModel.shared.players
@@ -476,7 +476,7 @@ title : FrontendModel -> String
 title { inner } =
     case inner of
         FrontendPlaying { gameName } ->
-            "Codebreaker! - Playing game " ++ gameName
+            "Codebreaker! - " ++ gameName
 
         _ ->
             "Codebreaker!"

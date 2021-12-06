@@ -2,6 +2,7 @@ module Backend exposing (..)
 
 import Dict
 import Lamdera exposing (ClientId, SessionId)
+import List.Extra
 import Task
 import Theme
 import Time
@@ -302,20 +303,97 @@ updateFromFrontend sessionId clientId msg model =
                         Cmd.none
                     )
                 )
-                (\playing ->
-                    case Dict.get id playing.shared.players of
+                (\({ shared } as playing) ->
+                    case Dict.get id shared.players of
                         Nothing ->
                             ( BackendPlaying playing, Cmd.none )
 
                         Just player ->
-                            let
-                                newGame =
-                                    playing
-                            in
-                            ( BackendPlaying newGame
-                            , Cmd.none
-                            )
+                            case player.model of
+                                Won _ ->
+                                    ( BackendPlaying playing, Cmd.none )
+
+                                Guessing { current } ->
+                                    let
+                                        code =
+                                            playing.codes
+                                                |> Dict.toList
+                                                |> List.Extra.filterNot (\( i, _ ) -> i == id)
+                                                |> List.head
+                                                |> Maybe.map Tuple.second
+                                                |> Maybe.withDefault []
+
+                                        answer =
+                                            getAnswer code current
+
+                                        newPlayer =
+                                            { player
+                                                | history = ( current, answer ) :: player.history
+                                                , model =
+                                                    if answer.black == shared.codeLength then
+                                                        Won { winTime = Debug.todo "winTime" }
+
+                                                    else
+                                                        Guessing { current = [] }
+                                            }
+
+                                        newGame =
+                                            { playing
+                                                | shared =
+                                                    { shared
+                                                        | players = Dict.insert id newPlayer shared.players
+                                                    }
+                                            }
+                                    in
+                                    ( BackendPlaying newGame
+                                    , Cmd.none
+                                    )
                 )
+
+
+getAnswer : Code -> Code -> Answer
+getAnswer code guess =
+    List.map2 Tuple.pair code guess
+        |> List.foldl
+            (\( codeDigit, guessDigit ) acc ->
+                if codeDigit == guessDigit then
+                    { acc | black = acc.black + 1 }
+
+                else
+                    { acc
+                        | extraCode = codeDigit :: acc.extraCode
+                        , extraGuess = guessDigit :: acc.extraGuess
+                    }
+            )
+            { black = 0
+            , extraCode = []
+            , extraGuess = []
+            }
+        |> (\{ black, extraCode, extraGuess } ->
+                let
+                    aggregateCount list =
+                        list
+                            |> List.Extra.gatherEquals
+                            |> List.map (\( h, t ) -> ( h, 1 + List.length t ))
+
+                    extraCodeDict =
+                        extraCode
+                            |> aggregateCount
+                            |> Dict.fromList
+                in
+                { black = black
+                , white =
+                    extraGuess
+                        |> aggregateCount
+                        |> List.map
+                            (\( h, count ) ->
+                                min
+                                    (Maybe.withDefault 0 <| Dict.get h extraCodeDict)
+                                    count
+                            )
+                        |> List.sum
+                }
+           )
 
 
 updateGame :
