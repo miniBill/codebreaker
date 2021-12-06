@@ -133,10 +133,24 @@ view model =
                 , Theme.fontSizes.big
                 , padding 0
                 , inFront <|
-                    Theme.button []
-                        { onPress = Home
-                        , label = text "🏠"
-                        }
+                    case model.inner of
+                        FrontendConnecting ->
+                            Element.none
+
+                        FrontendHomepage _ ->
+                            Element.none
+
+                        FrontendPreparing _ ->
+                            Theme.button []
+                                { onPress = Home
+                                , label = text "🏠"
+                                }
+
+                        FrontendPlaying _ ->
+                            Theme.button []
+                                { onPress = Home
+                                , label = text "🏠"
+                                }
                 ]
                 [ el [ centerX ] <| text <| title model
                 ]
