@@ -136,10 +136,6 @@ defaultHomepageModel =
     }
 
 
-type alias Id =
-    String
-
-
 toInnerFrontendModel : Id -> GameName -> GameModel -> InnerFrontendModel
 toInnerFrontendModel id gameName game =
     case game of
@@ -156,7 +152,7 @@ toInnerFrontendModel id gameName game =
             FrontendPreparing
                 { shared = preparing.shared
                 , gameName = gameName
-                , me = player
+                , me = ( id, player )
                 , players =
                     Dict.map
                         (\_ { username, ready } ->

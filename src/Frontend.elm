@@ -358,7 +358,29 @@ viewAnswer codeLength { black, white } =
 
 
 viewPreparing : PreparingFrontendModel -> List (Element FrontendMsg)
-viewPreparing ({ me } as preparingModel) =
+viewPreparing preparingModel =
+    let
+        me =
+            Tuple.second preparingModel.me
+
+        viewOthers =
+            preparingModel.players
+                |> Dict.toList
+                |> List.filter (\( id, _ ) -> id /= Tuple.first preparingModel.me)
+                |> List.map
+                    (\( _, { username, ready } ) ->
+                        text <|
+                            username
+                                ++ ":"
+                                ++ (if ready then
+                                        "Ready"
+
+                                    else
+                                        "Preparing"
+                                   )
+                    )
+                |> Theme.column [ padding 0, centerX ]
+    in
     (if me.ready then
         [ el [ centerX ] <| Element.text "Wait for other players"
         , viewCode [ Theme.borderWidth, centerX ] me.code
@@ -378,6 +400,8 @@ viewPreparing ({ me } as preparingModel) =
 
              else
                 Element.none
+           , el [ Font.bold, centerX ] <| text "Other players"
+           , viewOthers
            ]
 
 

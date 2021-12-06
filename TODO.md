@@ -1,7 +1,5 @@
 1. validate input on game creation/join
 2. game link / game URL
-3. in the preparation, show other people's statuses
-4. mark the winner
-5. 3 players
-6. removing stale games
-7. "home" button
+3. mark the winner
+4. 3 players
+5. removing stale games

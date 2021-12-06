@@ -37,11 +37,15 @@ type alias PreparingSharedModel =
     }
 
 
+type alias Id =
+    String
+
+
 type alias PreparingFrontendModel =
     { shared : PreparingSharedModel
     , gameName : String
-    , me : PreparingUser
-    , players : Dict ClientId { username : String, ready : Bool }
+    , me : ( Id, PreparingUser )
+    , players : Dict Id { username : String, ready : Bool }
     }
 
 
@@ -54,7 +58,7 @@ type alias PreparingUser =
 
 type alias PreparingBackendModel =
     { shared : PreparingSharedModel
-    , players : Dict ClientId PreparingUser
+    , players : Dict Id PreparingUser
     }
 
 
