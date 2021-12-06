@@ -256,8 +256,8 @@ viewMePlaying ({ codeLength } as config) data =
                         [ text "You guessed the code!" ]
 
                     Guessing { current } ->
-                        [ text "Still guessing..."
-                        , viewCode [ padding 0 ] (padCode codeLength current)
+                        [ el [ centerX ] <| text "Still guessing..."
+                        , viewCode [ centerX, padding 0 ] (padCode codeLength current)
                         ]
                 )
     in
@@ -425,24 +425,12 @@ codeInput { codeLength, colors } code =
             Theme.colors
                 |> List.take colors
                 |> List.indexedMap
-                    (\colorIndex ( fgcolor, c ) ->
+                    (\colorIndex color ->
                         Input.button
-                            [ width <| px 20
-                            , height <| px 20
-                            , Background.color c
-                            , Border.rounded 20
-                            , Border.width 1
-                            , Border.color <| Element.rgb 0 0 0
+                            [ Border.rounded 20
                             ]
                             { onPress = Just <| List.Extra.setAt index colorIndex paddedCode
-                            , label =
-                                Element.with .colorblindMode <| \colorblindMode ->
-                                if colorblindMode then
-                                    el [ Font.color fgcolor, centerX, centerY, Element.moveUp 2 ] <|
-                                        (text <| String.fromInt <| 1 + colorIndex)
-
-                                else
-                                    Element.none
+                            , label = viewColor color
                             }
                     )
                 |> Theme.column [ padding 0 ]
@@ -472,27 +460,34 @@ viewCode attrs =
         << List.map
             (\digit ->
                 let
-                    ( fgcolor, bgcolor ) =
+                    color =
                         List.Extra.getAt digit Theme.colors
-                            |> Maybe.withDefault ( Element.rgb 0 0 0, Element.rgb 0.7 0.7 0.7 )
+                            |> Maybe.withDefault
+                                { backgroundColor = Element.rgb 0.7 0.7 0.7
+                                , symbol = "🕛"
+                                }
                 in
-                el
-                    [ width <| px 20
-                    , height <| px 20
-                    , Background.color bgcolor
-                    , Border.rounded 20
-                    , Theme.borderWidth
-                    , Border.color <| Element.rgb 0 0 0
-                    ]
-                    (Element.with .colorblindMode <| \colorblindMode ->
-                    if colorblindMode && digit >= 0 then
-                        el [ Font.color fgcolor, centerX, centerY, Element.moveUp 2 ] <|
-                            (text <| String.fromInt <| 1 + digit)
-
-                    else
-                        Element.none
-                    )
+                el [ Border.rounded 20 ] <| viewColor color
             )
+
+
+viewColor : { backgroundColor : Element.Color, symbol : String } -> Element msg
+viewColor { backgroundColor, symbol } =
+    Element.with .colorblindMode <| \colorblindMode ->
+    if colorblindMode then
+        el [ centerX, centerY, Theme.fontSizes.big ] <|
+            text symbol
+
+    else
+        el
+            [ width <| px 20
+            , height <| px 20
+            , Background.color backgroundColor
+            , Border.rounded 20
+            , Border.width 1
+            , Border.color <| Element.rgb 0 0 0
+            ]
+            Element.none
 
 
 viewHomepage : String -> HomepageModel -> List (Element FrontendMsg)
