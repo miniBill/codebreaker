@@ -39,9 +39,9 @@ app =
 init : Url.Url -> Nav.Key -> ( FrontendModel, Cmd FrontendMsg )
 init _ key =
     ( { key = key
-      , context = {}
       , inner = FrontendConnecting
       , error = ""
+      , colorblindMode = False
       }
     , Cmd.none
     )
@@ -87,6 +87,9 @@ update msg model =
         Submit ->
             ( model, Lamdera.sendToBackend TBSubmit )
 
+        ColorblindMode colorblindMode ->
+            ( { model | colorblindMode = colorblindMode }, Cmd.none )
+
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 updateFromBackend msg model =
@@ -103,7 +106,7 @@ outerView model =
     { title = title model
     , body =
         [ Element.layout
-            model.context
+            { colorblindMode = model.colorblindMode }
             [ Theme.fontSizes.normal
             , width fill
             , height fill
@@ -146,9 +149,19 @@ view model =
 
                 FrontendPlaying playing ->
                     viewPlaying playing
+
+        accessibility =
+            [ el [ centerX ] <|
+                Input.checkbox []
+                    { onChange = ColorblindMode
+                    , checked = model.colorblindMode
+                    , label = Input.labelRight [] <| text "Colorblind mode"
+                    , icon = Input.defaultCheckbox
+                    }
+            ]
     in
     Theme.column [ width fill, height fill ]
-        (header :: errors :: body)
+        (header :: errors :: body ++ accessibility)
 
 
 viewPlaying : PlayingFrontendModel -> List (Element FrontendMsg)
@@ -204,7 +217,7 @@ viewMePlaying ({ codeLength } as config) data =
                 { data | username = "You" }
                 (case data.model of
                     Won _ ->
-                        [ text "You guess the code!" ]
+                        [ text "You guessed the code!" ]
 
                     Guessing { current } ->
                         [ text "Still guessing..."
@@ -360,8 +373,13 @@ codeInput { codeLength, colors } code =
                             ]
                             { onPress = Just <| List.Extra.setAt index colorIndex paddedCode
                             , label =
-                                el [ Font.color fgcolor, centerX, centerY ] <|
-                                    (text <| String.fromInt <| 1 + colorIndex)
+                                Element.with .colorblindMode <| \colorblindMode ->
+                                if colorblindMode then
+                                    el [ Font.color fgcolor, centerX, centerY ] <|
+                                        (text <| String.fromInt <| 1 + colorIndex)
+
+                                else
+                                    Element.none
                             }
                     )
                 |> Theme.column [ padding 0 ]
@@ -403,12 +421,13 @@ viewCode attrs =
                     , Theme.borderWidth
                     , Border.color <| Element.rgb 0 0 0
                     ]
-                    (if digit < 0 then
-                        Element.none
-
-                     else
+                    (Element.with .colorblindMode <| \colorblindMode ->
+                    if colorblindMode && digit > 0 then
                         el [ Font.color fgcolor, centerX, centerY ] <|
                             (text <| String.fromInt <| 1 + digit)
+
+                    else
+                        Element.none
                     )
             )
 

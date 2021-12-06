@@ -10,9 +10,9 @@ import Url exposing (Url)
 
 type alias FrontendModel =
     { key : Key
-    , context : Context
     , inner : InnerFrontendModel
     , error : String
+    , colorblindMode : Bool
     }
 
 
@@ -81,7 +81,7 @@ type alias PlayingBackendModel =
 
 
 type alias Context =
-    {}
+    { colorblindMode : Bool }
 
 
 type alias BackendModel =
@@ -135,6 +135,7 @@ type FrontendMsg
     | UpsertGame
     | SetCode Code
     | Submit
+    | ColorblindMode Bool
 
 
 type ToBackend

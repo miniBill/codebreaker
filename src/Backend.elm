@@ -105,7 +105,7 @@ update msg model =
                                             |> Dict.map
                                                 (\_ player ->
                                                     case ( player.model, player.history ) of
-                                                        ( Guessing _, { black } :: _ ) ->
+                                                        ( Guessing _, ( _, { black } ) :: _ ) ->
                                                             if black == shared.codeLength then
                                                                 { player | model = Won { winTime = now } }
 
