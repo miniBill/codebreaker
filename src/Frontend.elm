@@ -3,7 +3,7 @@ module Frontend exposing (..)
 import Browser exposing (UrlRequest(..))
 import Browser.Navigation as Nav exposing (Key)
 import Dict
-import Element.WithContext as Element exposing (alignRight, alignTop, centerX, centerY, el, fill, height, inFront, padding, paddingXY, px, spacing, text, width)
+import Element.WithContext as Element exposing (alignBottom, alignRight, alignTop, centerX, centerY, el, fill, height, inFront, padding, paddingXY, px, spacing, text, width)
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
 import Element.WithContext.Font as Font
@@ -188,7 +188,6 @@ viewPlaying playingModel =
     let
         config =
             { codeLength = playingModel.shared.codeLength
-            , maxHeight = maxHeight
             , colors = playingModel.shared.colors
             }
 
@@ -206,14 +205,6 @@ viewPlaying playingModel =
                 |> List.filter (\( i, _ ) -> i /= playingModel.me)
                 |> List.map Tuple.second
                 |> List.map (viewOther config)
-
-        maxHeight =
-            playingModel.shared.players
-                |> Dict.values
-                |> List.map (.history >> List.length >> (+) 1)
-                |> List.maximum
-                |> Maybe.withDefault 1
-                |> max 8
     in
     [ case playingModel.code of
         Nothing ->
@@ -243,7 +234,7 @@ viewPlaying playingModel =
 
 
 viewMePlaying :
-    { codeLength : Int, maxHeight : Int, colors : Int }
+    { codeLength : Int, colors : Int }
     -> { username : String, history : PlayerMoves, model : PlayerModel }
     -> List (Element FrontendMsg)
 viewMePlaying ({ codeLength } as config) data =
@@ -266,29 +257,30 @@ viewMePlaying ({ codeLength } as config) data =
             [ shared ]
 
         Guessing { current } ->
-            [ shared
-            , Theme.column
-                [ Theme.borderRounded
-                , Theme.borderWidth
-                , alignTop
-                ]
-                [ el [ centerX, Font.bold ] <| text "Your next guess:"
-                , Element.map SetCode <|
-                    codeInput config current
-                , if
-                    List.all ((/=) -1) current
-                        && (List.length current == codeLength)
-                  then
-                    Theme.button [ centerX ] { onPress = Submit, label = text "Submit" }
-
-                  else
-                    Element.none
+            [ Theme.row [ padding 0, alignTop ]
+                [ shared
+                , Theme.column
+                    [ Theme.borderRounded
+                    , Theme.borderWidth
+                    , alignBottom
+                    ]
+                    [ el [ centerX, Font.bold ] <| text "Your next guess:"
+                    , Element.map SetCode <|
+                        codeInput config current
+                    , Theme.button
+                        [ Element.transparent <|
+                            List.any ((==) -1) current
+                                || (List.length current /= codeLength)
+                        , centerX
+                        ]
+                        { onPress = Submit, label = text "Submit" }
+                    ]
                 ]
             ]
 
 
 viewOther :
-    { a | codeLength : Int, maxHeight : Int }
+    { a | codeLength : Int }
     -> { username : String, history : PlayerMoves, model : PlayerModel }
     -> Element msg
 viewOther ({ codeLength } as config) data =
@@ -305,12 +297,12 @@ viewOther ({ codeLength } as config) data =
         )
 
 
-viewPlayingPlayer : { a | codeLength : Int, maxHeight : Int } -> { username : String, history : PlayerMoves, model : PlayerModel } -> List (Element msg) -> Element msg
-viewPlayingPlayer { codeLength, maxHeight } { username, history, model } rest =
+viewPlayingPlayer : { a | codeLength : Int } -> { username : String, history : PlayerMoves, model : PlayerModel } -> List (Element msg) -> Element msg
+viewPlayingPlayer config { username, history, model } rest =
     Theme.column
         [ Theme.borderWidth
         , Theme.borderRounded
-        , height fill
+        , alignTop
         , case model of
             Won _ ->
                 Background.color <| Element.rgb 0.7 0.7 1
@@ -319,25 +311,29 @@ viewPlayingPlayer { codeLength, maxHeight } { username, history, model } rest =
                 Background.color <| Element.rgb 1 1 1
         ]
         ([ el [ Font.bold, centerX ] <| text username
-         , viewHistory codeLength maxHeight history
+         , viewHistory config history
          ]
             ++ rest
         )
 
 
-viewHistory : Int -> Int -> PlayerMoves -> Element msg
-viewHistory codeLength maxHeight moves =
+viewHistory : { a | codeLength : Int } -> PlayerMoves -> Element msg
+viewHistory config moves =
     let
+        expectedLength =
+            max 8 (1 + List.length moves)
+
         paddedMoves =
-            List.repeat (maxHeight - List.length moves) ( [], { white = 0, black = 0 } ) ++ moves
+            List.repeat (expectedLength - List.length moves) ( [], { white = 0, black = 0 } ) ++ moves
     in
     paddedMoves
-        |> List.indexedMap (\index -> viewHistoryLine codeLength (maxHeight - index))
+        |> List.reverse
+        |> List.indexedMap (\index -> viewHistoryLine config (index + 1))
         |> Theme.column [ padding 0 ]
 
 
-viewHistoryLine : Int -> Int -> ( Code, Answer ) -> Element msg
-viewHistoryLine codeLength index ( code, answer ) =
+viewHistoryLine : { a | codeLength : Int } -> Int -> ( Code, Answer ) -> Element msg
+viewHistoryLine { codeLength } index ( code, answer ) =
     Theme.row [ padding 0, width fill ]
         [ el [ alignRight, Element.moveUp 2 ] <| text <| String.fromInt index
         , viewCode [ alignRight, padding 0 ] (padCode codeLength code)
@@ -444,8 +440,8 @@ codeInput { codeLength, colors } code =
             viewCode [ Theme.borderWidth, centerX ] paddedCode
     in
     Theme.column [ padding 0, centerX ]
-        [ current
-        , inputs
+        [ inputs
+        , current
         ]
 
 

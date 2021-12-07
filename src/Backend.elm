@@ -96,27 +96,23 @@ update msg model =
                     )
                 )
                 (\({ shared } as playing) ->
-                    ( BackendPlaying
-                        { playing
-                            | shared =
-                                { shared
-                                    | players =
-                                        shared.players
-                                            |> Dict.map
-                                                (\_ player ->
-                                                    case ( player.model, player.history ) of
-                                                        ( Guessing _, ( _, { black } ) :: _ ) ->
-                                                            if black == shared.codeLength then
-                                                                { player | model = Won { winTime = now } }
+                    let
+                        newShared =
+                            { shared | players = Dict.map updatePlayer shared.players }
 
-                                                            else
-                                                                player
+                        updatePlayer _ player =
+                            case ( player.model, player.history ) of
+                                ( Guessing _, ( _, { black } ) :: _ ) ->
+                                    if black == shared.codeLength then
+                                        { player | model = Won { winTime = now } }
 
-                                                        _ ->
-                                                            player
-                                                )
-                                }
-                        }
+                                    else
+                                        player
+
+                                _ ->
+                                    player
+                    in
+                    ( BackendPlaying { playing | shared = newShared }
                     , Cmd.none
                     )
                 )
