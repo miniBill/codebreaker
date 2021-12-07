@@ -84,6 +84,9 @@ update msg model =
         SetCode code ->
             ( model, Lamdera.sendToBackend <| TBCode code )
 
+        SetGameSettings settings ->
+            ( model, Lamdera.sendToBackend <| TBGameSettings settings )
+
         Submit ->
             ( model, Lamdera.sendToBackend TBSubmit )
 
@@ -364,10 +367,33 @@ viewAnswer codeLength { black, white } =
 
 
 viewPreparing : PreparingFrontendModel -> List (Element FrontendMsg)
-viewPreparing preparingModel =
+viewPreparing ({ shared } as preparingModel) =
     let
         me =
             Tuple.second preparingModel.me
+
+        isInt x =
+            String.toInt x /= Nothing
+
+        sharedInput =
+            Theme.column [ padding 0, centerX ]
+                [ el [ width fill ] <|
+                    input
+                        { validate = isInt
+                        , label = "Length"
+                        , text = shared.codeLength
+                        , onChange = \newLength -> SetGameSettings { shared | codeLength = newLength }
+                        , placeholder = "4"
+                        }
+                , el [ width fill ] <|
+                    input
+                        { validate = isInt
+                        , label = "Colors"
+                        , text = shared.colors
+                        , onChange = \newColors -> SetGameSettings { shared | colors = newColors }
+                        , placeholder = "8"
+                        }
+                ]
 
         viewOthers =
             preparingModel.players
@@ -388,18 +414,25 @@ viewPreparing preparingModel =
                 |> Theme.column [ padding 0, centerX ]
     in
     (if me.ready then
-        [ el [ centerX ] <| Element.text "Wait for other players"
+        [ sharedInput
+        , el [ centerX ] <| Element.text "Wait for other players"
         , viewCode [ Theme.borderWidth, centerX ] me.code
         ]
 
      else
-        [ el [ centerX ] <| text <| "Set your secret code, " ++ me.username
-        , Element.map SetCode <| codeInput preparingModel.shared me.code
+        [ sharedInput
+        , el [ centerX ] <| text <| "Set your secret code, " ++ me.username
+        , Element.map SetCode <|
+            codeInput
+                { codeLength = Maybe.withDefault 4 <| String.toInt shared.codeLength
+                , colors = Maybe.withDefault 8 <| String.toInt shared.colors
+                }
+                me.code
         ]
     )
         ++ [ if
                 List.all ((/=) -1) me.code
-                    && (List.length me.code == preparingModel.shared.codeLength)
+                    && (String.fromInt (List.length me.code) == shared.codeLength)
                     && not me.ready
              then
                 Theme.button [ centerX ] { onPress = Submit, label = text "Ready" }
@@ -496,31 +529,9 @@ viewHomepage error homepageModel =
             else
                 el [ Theme.padding, Background.color <| Element.rgb 1 0.8 0.8, width fill ]
                     (text error)
-
-        isInt x =
-            String.toInt x /= Nothing
-
-        input { validate, label, text, placeholder, onChange } =
-            Input.text
-                (if String.isEmpty text || validate text then
-                    [ width fill ]
-
-                 else
-                    [ Background.color <| Element.rgb 1 0.8 0.8
-                    , width fill
-                    ]
-                )
-                { label = Input.labelAbove [] <| Element.text label
-                , text = text
-                , onChange = onChange
-                , placeholder = Just <| Input.placeholder [] <| Element.text placeholder
-                }
-
-        row =
-            Theme.row [ padding 0, width fill ]
     in
     [ text "Welcome to Codebreaker!"
-    , row
+    , Theme.row [ padding 0, width fill ]
         [ input
             { validate = always True
             , label = "Game name"
@@ -529,37 +540,46 @@ viewHomepage error homepageModel =
             , onChange = \newGameName -> HomepageMsg { homepageModel | gameName = GameName newGameName }
             }
         , input
-            { validate = isInt
-            , label = "Length"
-            , text = homepageModel.codeLength
-            , onChange = \newLength -> HomepageMsg { homepageModel | codeLength = newLength }
-            , placeholder = "4"
-            }
-        ]
-    , row
-        [ input
             { validate = always True
             , label = "User name"
             , text = homepageModel.username
             , placeholder = "User name"
             , onChange = \newUsername -> HomepageMsg { homepageModel | username = newUsername }
             }
-        , input
-            { validate = isInt
-            , label = "Colors"
-            , text = homepageModel.colors
-            , onChange = \newLength -> HomepageMsg { homepageModel | colors = newLength }
-            , placeholder = "8"
-            }
         ]
     , errorView
-    , row
+    , Theme.row [ padding 0, width fill ]
         [ Theme.button [ width fill ]
             { onPress = UpsertGame
             , label = text "Create or join game"
             }
         ]
     ]
+
+
+input :
+    { validate : String -> Bool
+    , label : String
+    , text : String
+    , placeholder : String
+    , onChange : String -> msg
+    }
+    -> Element msg
+input { validate, label, text, placeholder, onChange } =
+    Input.text
+        (if String.isEmpty text || validate text then
+            [ width fill ]
+
+         else
+            [ Background.color <| Element.rgb 1 0.8 0.8
+            , width fill
+            ]
+        )
+        { label = Input.labelAbove [] <| Element.text label
+        , text = text
+        , onChange = onChange
+        , placeholder = Just <| Input.placeholder [] <| Element.text placeholder
+        }
 
 
 title : FrontendModel -> String

@@ -26,14 +26,12 @@ type InnerFrontendModel
 type alias HomepageModel =
     { username : String
     , gameName : GameName
-    , colors : String
-    , codeLength : String
     }
 
 
 type alias PreparingSharedModel =
-    { colors : Int
-    , codeLength : Int
+    { colors : String
+    , codeLength : String
     }
 
 
@@ -149,6 +147,7 @@ type FrontendMsg
     | UrlChanged Url
     | HomepageMsg HomepageModel
     | UpsertGame
+    | SetGameSettings PreparingSharedModel
     | SetCode Code
     | Submit
     | ColorblindMode Bool
@@ -162,6 +161,7 @@ type ToBackend
     | TBSubmit
     | TBNewGame
     | TBHome
+    | TBGameSettings PreparingSharedModel
 
 
 type BackendMsg
