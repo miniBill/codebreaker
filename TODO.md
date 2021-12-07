@@ -1,9 +1,8 @@
-1. game settings in second page
-2. game link / game URL
-3. update spectators
-4. mark the winner
-5. Admin panel
-6. removing stale games
-7. AI
-8. Don't expose IDs to users
-9. Leaderboard
+1. game link / game URL
+2. update spectators
+3. mark the winner
+4. Admin panel
+5. removing stale games
+6. AI
+7. Don't expose IDs to users
+8. Leaderboard

@@ -432,7 +432,7 @@ viewPreparing ({ shared } as preparingModel) =
     )
         ++ [ if
                 List.all ((/=) -1) me.code
-                    && (String.fromInt (List.length me.code) == shared.codeLength)
+                    && (List.length me.code == Maybe.withDefault 4 (String.toInt shared.codeLength))
                     && not me.ready
              then
                 Theme.button [ centerX ] { onPress = Submit, label = text "Ready" }
