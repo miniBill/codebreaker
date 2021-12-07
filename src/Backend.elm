@@ -47,7 +47,7 @@ update msg model =
                     FrontendHomepage defaultHomepageModel
 
                 Just gameName ->
-                    case Dict.get gameName model.games of
+                    case Dict.get (normalizeGameName gameName) model.games of
                         Nothing ->
                             FrontendHomepage defaultHomepageModel
 
@@ -131,7 +131,7 @@ defaultHomepageModel : HomepageModel
 defaultHomepageModel =
     { codeLength = ""
     , colors = ""
-    , gameName = ""
+    , gameName = GameName ""
     , username = ""
     }
 
@@ -200,7 +200,7 @@ updateFromFrontend sessionId clientId msg model =
                             )
             in
             case
-                ( ( String.isEmpty data.username, String.isEmpty data.gameName )
+                ( ( String.isEmpty data.username, String.isEmpty (normalizeGameName data.gameName) )
                 , checkInRange 2 (List.length Theme.colors) <| withDefault "8" data.colors
                 , checkInRange 2 20 <| withDefault "4" data.codeLength
                 )
@@ -208,7 +208,7 @@ updateFromFrontend sessionId clientId msg model =
                 ( ( False, False ), Just colors, Just codeLength ) ->
                     let
                         newGame =
-                            case Dict.get data.gameName model.games of
+                            case Dict.get (normalizeGameName data.gameName) model.games of
                                 Just game ->
                                     case game of
                                         BackendPreparing preparing ->
@@ -241,7 +241,7 @@ updateFromFrontend sessionId clientId msg model =
                                         }
                     in
                     ( { inGame = Dict.insert id data.gameName model.inGame
-                      , games = Dict.insert data.gameName newGame model.games
+                      , games = Dict.insert (normalizeGameName data.gameName) newGame model.games
                       }
                     , Lamdera.sendToFrontend id <| TFReplaceModel <| toInnerFrontendModel id data.gameName newGame
                     )
@@ -346,13 +346,27 @@ updateFromFrontend sessionId clientId msg model =
 
                                 Guessing { current } ->
                                     let
+                                        codesList =
+                                            Dict.toList playing.codes
+
                                         code =
-                                            playing.codes
-                                                |> Dict.toList
-                                                |> List.Extra.filterNot (\( i, _ ) -> i == id)
-                                                |> List.head
-                                                |> Maybe.map Tuple.second
-                                                |> Maybe.withDefault []
+                                            let
+                                                go x =
+                                                    case x of
+                                                        [] ->
+                                                            []
+
+                                                        [ ( _, q ) ] ->
+                                                            q
+
+                                                        ( h1, _ ) :: ((( _, h2 ) :: _) as t) ->
+                                                            if h1 == id then
+                                                                h2
+
+                                                            else
+                                                                go t
+                                            in
+                                            go (codesList ++ List.take 1 codesList)
 
                                         answer =
                                             getAnswer code current
@@ -478,7 +492,7 @@ updateGame id model updatePreparing updatePlaying =
             ( model, Cmd.none )
 
         Just gameName ->
-            case Dict.get gameName model.games of
+            case Dict.get (normalizeGameName gameName) model.games of
                 Nothing ->
                     ( model, Cmd.none )
 
@@ -501,7 +515,7 @@ updateGame id model updatePreparing updatePlaying =
                                 |> TFReplaceModel
                                 |> Lamdera.sendToFrontend cid
                     in
-                    ( { model | games = Dict.insert gameName newGame model.games }
+                    ( { model | games = Dict.insert (normalizeGameName gameName) newGame model.games }
                     , playerIds
                         |> List.map send
                         |> (::) additionalCmd

@@ -1,6 +1,6 @@
-1. game link / game URL
-2. mark the winner
-3. 3 players
+1. update spectators
+2. game link / game URL
+3. mark the winner
 4. removing stale games
 5. AI
-6. Update spectators
+6. Don't expose IDs to users

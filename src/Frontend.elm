@@ -381,7 +381,7 @@ viewPreparing preparingModel =
                     (\( _, { username, ready } ) ->
                         text <|
                             username
-                                ++ ":"
+                                ++ ": "
                                 ++ (if ready then
                                         "Ready"
 
@@ -528,9 +528,9 @@ viewHomepage error homepageModel =
         [ input
             { validate = always True
             , label = "Game name"
-            , text = homepageModel.gameName
+            , text = rawGameName homepageModel.gameName
             , placeholder = "Game name"
-            , onChange = \newGameName -> HomepageMsg { homepageModel | gameName = newGameName }
+            , onChange = \newGameName -> HomepageMsg { homepageModel | gameName = GameName newGameName }
             }
         , input
             { validate = isInt
@@ -570,7 +570,10 @@ title : FrontendModel -> String
 title { inner } =
     case inner of
         FrontendPlaying { gameName } ->
-            "Codebreaker! - " ++ gameName
+            "Codebreaker! - " ++ rawGameName gameName
+
+        FrontendPreparing { gameName } ->
+            "Codebreaker! - " ++ rawGameName gameName
 
         _ ->
             "Codebreaker!"

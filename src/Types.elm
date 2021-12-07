@@ -43,7 +43,7 @@ type alias Id =
 
 type alias PreparingFrontendModel =
     { shared : PreparingSharedModel
-    , gameName : String
+    , gameName : GameName
     , me : ( Id, PreparingUser )
     , players : Dict Id { username : String, ready : Bool }
     }
@@ -72,7 +72,7 @@ type alias PlayingSharedModel =
 
 type alias PlayingFrontendModel =
     { shared : PlayingSharedModel
-    , gameName : String
+    , gameName : GameName
     , code : Maybe Code
     , me : ClientId
     }
@@ -90,12 +90,24 @@ type alias Context =
 
 type alias BackendModel =
     { inGame : Dict ClientId GameName
-    , games : Dict GameName GameModel
+    , games : Dict String GameModel
     }
 
 
-type alias GameName =
-    String
+type GameName
+    = GameName String
+
+
+normalizeGameName : GameName -> String
+normalizeGameName (GameName str) =
+    str
+        |> String.toLower
+        |> String.replace " " ""
+
+
+rawGameName : GameName -> String
+rawGameName (GameName str) =
+    str
 
 
 type GameModel
