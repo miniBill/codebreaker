@@ -413,23 +413,22 @@ viewPreparing ({ shared } as preparingModel) =
                     )
                 |> Theme.column [ padding 0, centerX ]
     in
-    (if me.ready then
-        [ sharedInput
-        , el [ centerX ] <| Element.text "Wait for other players"
-        , viewCode [ Theme.borderWidth, centerX ] me.code
-        ]
+    sharedInput
+        :: (if me.ready then
+                [ el [ centerX ] <| Element.text "Wait for other players"
+                , viewCode [ Theme.borderWidth, centerX ] me.code
+                ]
 
-     else
-        [ sharedInput
-        , el [ centerX ] <| text <| "Set your secret code, " ++ me.username
-        , Element.map SetCode <|
-            codeInput
-                { codeLength = Maybe.withDefault 4 <| String.toInt shared.codeLength
-                , colors = Maybe.withDefault 8 <| String.toInt shared.colors
-                }
-                me.code
-        ]
-    )
+            else
+                [ el [ centerX ] <| text <| "Set your secret code, " ++ me.username
+                , Element.map SetCode <|
+                    codeInput
+                        { codeLength = Maybe.withDefault 4 <| String.toInt shared.codeLength
+                        , colors = Maybe.withDefault 8 <| String.toInt shared.colors
+                        }
+                        me.code
+                ]
+           )
         ++ [ if
                 List.all ((/=) -1) me.code
                     && (List.length me.code == Maybe.withDefault 4 (String.toInt shared.codeLength))
@@ -439,8 +438,10 @@ viewPreparing ({ shared } as preparingModel) =
 
              else
                 Element.none
-           , el [ Font.bold, centerX ] <| text "Other players"
-           , viewOthers
+           , Theme.column [ padding 0, centerX ]
+                [ el [ Font.bold, centerX ] <| text "Other players"
+                , viewOthers
+                ]
            ]
 
 
