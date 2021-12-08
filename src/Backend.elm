@@ -1,6 +1,6 @@
 module Backend exposing (app)
 
-import Dict
+import Dict exposing (Dict)
 import Lamdera exposing (ClientId, SessionId)
 import List.Extra
 import Set
@@ -228,10 +228,11 @@ fromFrontendTimed now id msg model =
                                 , startTime = now
                                 , players =
                                     Dict.map
-                                        (\_ { username } ->
+                                        (\pid { username } ->
                                             { username = username
                                             , history = []
                                             , model = Guessing { current = [] }
+                                            , opponent = getOpponent pid newGame.players
                                             }
                                         )
                                         newGame.players
@@ -258,26 +259,7 @@ fromFrontendTimed now id msg model =
                                 Guessing { current } ->
                                     let
                                         code =
-                                            let
-                                                codesList =
-                                                    Dict.toList playing.codes
-
-                                                go x =
-                                                    case x of
-                                                        [] ->
-                                                            []
-
-                                                        [ ( _, q ) ] ->
-                                                            q
-
-                                                        ( h1, _ ) :: ((( _, h2 ) :: _) as t) ->
-                                                            if h1 == id then
-                                                                h2
-
-                                                            else
-                                                                go t
-                                            in
-                                            go (codesList ++ List.take 1 codesList)
+                                            Dict.get player.opponent playing.codes |> Maybe.withDefault []
 
                                         answer =
                                             getAnswer code current
@@ -364,6 +346,33 @@ fromFrontendTimed now id msg model =
                     )
                 )
                 (\playing -> ( BackendPlaying playing, Cmd.none ))
+
+        TBAdminAuthenticate _ ->
+            ( model, Cmd.none )
+
+
+getOpponent : Id -> Dict Id a -> Id
+getOpponent id dict =
+    let
+        keys =
+            Dict.keys dict
+
+        go x =
+            case x of
+                [] ->
+                    ""
+
+                [ q ] ->
+                    q
+
+                h1 :: ((h2 :: _) as t) ->
+                    if h1 == id then
+                        h2
+
+                    else
+                        go t
+    in
+    go (keys ++ List.take 1 keys)
 
 
 toId : SessionId -> ClientId -> SessionId

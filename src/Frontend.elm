@@ -166,7 +166,7 @@ updateFromBackend msg model =
                     case ( model.inner, inner ) of
                         ( FrontendConnecting gameName, FrontendHomepage homepage ) ->
                             ( if gameName == GameName "admin" then
-                                FrontendAdmin {}
+                                FrontendAdminAuthenticating ""
 
                               else
                                 FrontendHomepage { homepage | gameName = gameName }
@@ -224,7 +224,10 @@ getGameName model =
         FrontendPlaying { gameName } ->
             gameName
 
-        FrontendAdmin _ ->
+        FrontendAdminAuthenticating _ ->
+            GameName "admin"
+
+        FrontendAdminAuthenticated _ ->
             GameName "admin"
 
 
@@ -248,20 +251,23 @@ view model =
     let
         maybeHomeButton active =
             case model.inner of
+                FrontendPreparing _ ->
+                    homeButton active
+
+                FrontendPlaying _ ->
+                    homeButton active
+
                 FrontendConnecting _ ->
                     Element.none
 
                 FrontendHomepage _ ->
                     Element.none
 
-                FrontendAdmin _ ->
+                FrontendAdminAuthenticated _ ->
                     Element.none
 
-                FrontendPreparing _ ->
-                    homeButton active
-
-                FrontendPlaying _ ->
-                    homeButton active
+                FrontendAdminAuthenticating _ ->
+                    Element.none
 
         header =
             case title model of
@@ -286,7 +292,10 @@ view model =
                 FrontendConnecting _ ->
                     [ el [ centerX, centerY ] <| text "Connecting to server" ]
 
-                FrontendAdmin _ ->
+                FrontendAdminAuthenticating _ ->
+                    [ text "TODO" ]
+
+                FrontendAdminAuthenticated _ ->
                     [ text "TODO" ]
 
                 FrontendHomepage homepage ->
@@ -446,7 +455,7 @@ viewOther ({ startTime, codeLength } as shared) player =
 
 
 viewPlayingPlayer : PlayingSharedModel -> PlayingPlayerModel -> List (Element msg) -> Element msg
-viewPlayingPlayer shared { username, history, model } rest =
+viewPlayingPlayer shared { username, history, model, opponent } rest =
     Theme.column
         [ Theme.borderWidth
         , Theme.borderRounded
@@ -459,6 +468,7 @@ viewPlayingPlayer shared { username, history, model } rest =
                 Background.color <| Element.rgb 1 1 1
         ]
         ([ el [ Font.bold, centerX ] <| text username
+         , el [ centerX ] <| text <| "Guessing " ++ opponent
          , viewHistory shared history
          ]
             ++ rest
@@ -812,6 +822,15 @@ ids =
 
 title : FrontendModel -> String
 title { inner } =
+    let
+        fromGame gameName =
+            case rawGameName gameName of
+                "" ->
+                    "Codebreaker!"
+
+                rawName ->
+                    "Codebreaker! - " ++ rawName
+    in
     case inner of
         FrontendPlaying { gameName } ->
             "Codebreaker! - " ++ rawGameName gameName
@@ -822,7 +841,10 @@ title { inner } =
         FrontendHomepage { gameName } ->
             "Codebreaker! - " ++ rawGameName gameName
 
-        FrontendAdmin _ ->
+        FrontendAdminAuthenticating _ ->
+            ""
+
+        FrontendAdminAuthenticated _ ->
             ""
 
         FrontendConnecting _ ->

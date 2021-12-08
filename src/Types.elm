@@ -23,7 +23,8 @@ type InnerFrontendModel
     | FrontendHomepage HomepageModel
     | FrontendPreparing PreparingFrontendModel
     | FrontendPlaying PlayingFrontendModel
-    | FrontendAdmin AdminModel
+    | FrontendAdminAuthenticating String
+    | FrontendAdminAuthenticated AdminModel
 
 
 type alias HomepageModel =
@@ -83,6 +84,7 @@ type alias PlayingPlayerModel =
     { username : String
     , history : PlayerMoves
     , model : PlayerModel
+    , opponent : String
     }
 
 
@@ -102,7 +104,9 @@ type alias PlayingBackendModel =
 
 
 type alias AdminModel =
-    {}
+    { preparing : List PreparingFrontendModel
+    , playing : List PlayingFrontendModel
+    }
 
 
 type alias Context =
@@ -196,13 +200,7 @@ type ToBackend
     | TBNewGame
     | TBHome
     | TBGameSettings PreparingSharedModel
-
-
-
---| TBAdmin String TBAdminCommand
--- type TBAdminCommand
---     = TBListGames
---     | TBDestroyGame GameName
+    | TBAdminAuthenticate String
 
 
 type BackendMsg
