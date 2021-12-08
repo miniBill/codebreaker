@@ -3,6 +3,7 @@ module Backend exposing (app)
 import Dict
 import Lamdera exposing (ClientId, SessionId)
 import List.Extra
+import Set
 import Task
 import Time
 import Types exposing (..)
@@ -27,6 +28,8 @@ init : ( BackendModel, Cmd BackendMsg )
 init =
     ( { inGame = Dict.empty
       , games = Dict.empty
+      , connected = Dict.empty
+      , adminSessions = Set.empty
       }
     , Cmd.none
     )
@@ -40,7 +43,12 @@ update msg model =
                 id =
                     toId sessionId clientId
             in
-            ( model
+            ( { model
+                | connected =
+                    Dict.update sessionId
+                        (Maybe.withDefault Set.empty >> Set.insert clientId >> Just)
+                        model.connected
+              }
             , (case Dict.get id model.inGame of
                 Nothing ->
                     FrontendHomepage defaultHomepageModel
@@ -57,68 +65,305 @@ update msg model =
                 |> Lamdera.sendToFrontend id
             )
 
-        ClientDisconnected _ _ ->
-            ( model, Cmd.none )
+        ClientDisconnected sessionId clientId ->
+            ( { model
+                | connected =
+                    Dict.update sessionId
+                        (Maybe.andThen
+                            (\clientIds ->
+                                let
+                                    newClientIds =
+                                        Set.remove clientId clientIds
+                                in
+                                if Set.isEmpty newClientIds then
+                                    Nothing
 
-        StartGame id now ->
+                                else
+                                    Just newClientIds
+                            )
+                        )
+                        model.connected
+              }
+            , Cmd.none
+            )
+
+        Timed now id submsg ->
+            fromFrontendTimed now id submsg model
+
+
+fromFrontendTimed : Time.Posix -> Id -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg )
+fromFrontendTimed now id msg model =
+    case msg of
+        TBUpsertGame data ->
+            if String.isEmpty data.username then
+                ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty user name" )
+
+            else if String.isEmpty (normalizeGameName data.gameName) then
+                ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty game name" )
+
+            else
+                let
+                    newGame =
+                        case Dict.get (normalizeGameName data.gameName) model.games of
+                            Just game ->
+                                case game of
+                                    BackendPreparing preparing ->
+                                        BackendPreparing
+                                            { preparing
+                                                | players =
+                                                    Dict.insert id
+                                                        { ready = False
+                                                        , code = []
+                                                        , username = data.username
+                                                        }
+                                                        preparing.players
+                                                , lastAction = now
+                                            }
+
+                                    BackendPlaying _ ->
+                                        game
+
+                            Nothing ->
+                                BackendPreparing
+                                    { shared =
+                                        { colors = 8
+                                        , codeLength = ""
+                                        }
+                                    , players =
+                                        Dict.singleton id
+                                            { ready = False
+                                            , code = []
+                                            , username = data.username
+                                            }
+                                    , lastAction = now
+                                    }
+                in
+                ( { model
+                    | inGame = Dict.insert id data.gameName model.inGame
+                    , games = Dict.insert (normalizeGameName data.gameName) newGame model.games
+                  }
+                , Lamdera.sendToFrontend id <| TFReplaceModel <| toInnerFrontendModel id data.gameName newGame
+                )
+
+        TBCode code ->
             updateGame id
                 model
-                (\newGame ->
+                (\preparing ->
+                    let
+                        setCode player =
+                            if player.ready then
+                                player
+
+                            else
+                                { player | code = code }
+                    in
+                    ( { preparing
+                        | players =
+                            Dict.update
+                                id
+                                (Maybe.map setCode)
+                                preparing.players
+                        , lastAction = now
+                      }
+                        |> BackendPreparing
+                    , Cmd.none
+                    )
+                )
+                (\playing ->
                     let
                         shared =
-                            preparingSharedParse newGame.shared
+                            playing.shared
+
+                        setCode player =
+                            case player.model of
+                                Guessing _ ->
+                                    { player | model = Guessing { current = code } }
+
+                                Won _ ->
+                                    player
                     in
-                    ( BackendPlaying
-                        { codes = Dict.map (\_ { code } -> code) newGame.players
-                        , shared =
-                            { colors = shared.colors
-                            , codeLength = shared.codeLength
-                            , startTime = now
-                            , players =
+                    ( { playing
+                        | shared =
+                            { shared
+                                | players =
+                                    Dict.update
+                                        id
+                                        (Maybe.map setCode)
+                                        shared.players
+                            }
+                        , lastAction = now
+                      }
+                        |> BackendPlaying
+                    , Cmd.none
+                    )
+                )
+
+        TBSubmit ->
+            updateGame id
+                model
+                (\preparing ->
+                    let
+                        setReady player =
+                            { player | ready = True }
+
+                        newGame =
+                            { preparing
+                                | players =
+                                    Dict.update
+                                        id
+                                        (Maybe.map setReady)
+                                        preparing.players
+                                , lastAction = now
+                            }
+                    in
+                    if Dict.size newGame.players >= 2 && List.all .ready (Dict.values newGame.players) then
+                        let
+                            shared =
+                                preparingSharedParse newGame.shared
+                        in
+                        ( { codes = Dict.map (\_ { code } -> code) newGame.players
+                          , shared =
+                                { colors = shared.colors
+                                , codeLength = shared.codeLength
+                                , startTime = now
+                                , players =
+                                    Dict.map
+                                        (\_ { username } ->
+                                            { username = username
+                                            , history = []
+                                            , model = Guessing { current = [] }
+                                            }
+                                        )
+                                        newGame.players
+                                }
+                          , lastAction = now
+                          }
+                            |> BackendPlaying
+                        , Cmd.none
+                        )
+
+                    else
+                        ( BackendPreparing newGame, Cmd.none )
+                )
+                (\({ shared } as playing) ->
+                    case Dict.get id shared.players of
+                        Nothing ->
+                            ( BackendPlaying playing, Cmd.none )
+
+                        Just player ->
+                            case player.model of
+                                Won _ ->
+                                    ( BackendPlaying playing, Cmd.none )
+
+                                Guessing { current } ->
+                                    let
+                                        code =
+                                            let
+                                                codesList =
+                                                    Dict.toList playing.codes
+
+                                                go x =
+                                                    case x of
+                                                        [] ->
+                                                            []
+
+                                                        [ ( _, q ) ] ->
+                                                            q
+
+                                                        ( h1, _ ) :: ((( _, h2 ) :: _) as t) ->
+                                                            if h1 == id then
+                                                                h2
+
+                                                            else
+                                                                go t
+                                            in
+                                            go (codesList ++ List.take 1 codesList)
+
+                                        answer =
+                                            getAnswer code current
+
+                                        newPlayer =
+                                            { player
+                                                | history = ( current, answer ) :: player.history
+                                                , model =
+                                                    if answer.black == shared.codeLength then
+                                                        Won { winTime = now }
+
+                                                    else
+                                                        Guessing { current = [] }
+                                            }
+                                    in
+                                    ( { playing
+                                        | shared =
+                                            { shared
+                                                | players = Dict.insert id newPlayer shared.players
+                                            }
+                                        , lastAction = now
+                                      }
+                                        |> BackendPlaying
+                                    , Cmd.none
+                                    )
+                )
+
+        TBNewGame ->
+            updateGame id
+                model
+                (\preparing -> ( BackendPreparing preparing, Cmd.none ))
+                (\({ shared } as playing) ->
+                    if
+                        List.all
+                            (\player ->
+                                case player.model of
+                                    Won _ ->
+                                        True
+
+                                    Guessing _ ->
+                                        False
+                            )
+                            (Dict.values shared.players)
+                    then
+                        ( { shared =
+                                { codeLength = String.fromInt playing.shared.codeLength
+                                , colors = playing.shared.colors
+                                }
+                          , players =
                                 Dict.map
                                     (\_ { username } ->
-                                        { username = username
-                                        , history = []
-                                        , model = Guessing { current = [] }
+                                        { code = []
+                                        , ready = False
+                                        , username = username
                                         }
                                     )
-                                    newGame.players
-                            }
-                        }
+                                    playing.shared.players
+                          , lastAction = now
+                          }
+                            |> BackendPreparing
+                        , Cmd.none
+                        )
+
+                    else
+                        ( BackendPlaying playing, Cmd.none )
+                )
+
+        TBHome ->
+            ( { model | inGame = Dict.remove id model.inGame }
+            , Lamdera.sendToFrontend id <| TFReplaceModel (FrontendHomepage defaultHomepageModel)
+            )
+
+        TBGameSettings shared ->
+            updateGame id
+                model
+                (\preparing ->
+                    ( { preparing
+                        | shared = shared
+                        , players = Dict.map (\_ player -> { player | ready = False, code = [] }) preparing.players
+                        , lastAction = now
+                      }
+                        |> BackendPreparing
                     , Cmd.none
                     )
                 )
                 (\playing -> ( BackendPlaying playing, Cmd.none ))
-
-        GotWinTime id now ->
-            updateGame id
-                model
-                (\preparing ->
-                    ( BackendPreparing preparing
-                    , Cmd.none
-                    )
-                )
-                (\({ shared } as playing) ->
-                    let
-                        newShared =
-                            { shared | players = Dict.map updatePlayer shared.players }
-
-                        updatePlayer _ player =
-                            case ( player.model, player.history ) of
-                                ( Guessing _, ( _, { black } ) :: _ ) ->
-                                    if black == shared.codeLength then
-                                        { player | model = Won { winTime = now } }
-
-                                    else
-                                        player
-
-                                _ ->
-                                    player
-                    in
-                    ( BackendPlaying { playing | shared = newShared }
-                    , Cmd.none
-                    )
-                )
 
 
 toId : SessionId -> ClientId -> SessionId
@@ -175,244 +420,7 @@ updateFromFrontend sessionId clientId msg model =
         id =
             toId sessionId clientId
     in
-    case msg of
-        TBUpsertGame data ->
-            if String.isEmpty data.username then
-                ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty user name" )
-
-            else if String.isEmpty (normalizeGameName data.gameName) then
-                ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty game name" )
-
-            else
-                let
-                    newGame =
-                        case Dict.get (normalizeGameName data.gameName) model.games of
-                            Just game ->
-                                case game of
-                                    BackendPreparing preparing ->
-                                        BackendPreparing
-                                            { preparing
-                                                | players =
-                                                    Dict.insert id
-                                                        { ready = False
-                                                        , code = []
-                                                        , username = data.username
-                                                        }
-                                                        preparing.players
-                                            }
-
-                                    BackendPlaying _ ->
-                                        game
-
-                            Nothing ->
-                                BackendPreparing
-                                    { shared =
-                                        { colors = 8
-                                        , codeLength = ""
-                                        }
-                                    , players =
-                                        Dict.singleton id
-                                            { ready = False
-                                            , code = []
-                                            , username = data.username
-                                            }
-                                    }
-                in
-                ( { inGame = Dict.insert id data.gameName model.inGame
-                  , games = Dict.insert (normalizeGameName data.gameName) newGame model.games
-                  }
-                , Lamdera.sendToFrontend id <| TFReplaceModel <| toInnerFrontendModel id data.gameName newGame
-                )
-
-        TBCode code ->
-            updateGame id
-                model
-                (\preparing ->
-                    let
-                        setCode player =
-                            if player.ready then
-                                player
-
-                            else
-                                { player | code = code }
-                    in
-                    ( { preparing
-                        | players =
-                            Dict.update
-                                id
-                                (Maybe.map setCode)
-                                preparing.players
-                      }
-                        |> BackendPreparing
-                    , Cmd.none
-                    )
-                )
-                (\playing ->
-                    let
-                        shared =
-                            playing.shared
-
-                        setCode player =
-                            case player.model of
-                                Guessing _ ->
-                                    { player | model = Guessing { current = code } }
-
-                                Won _ ->
-                                    player
-                    in
-                    ( { playing
-                        | shared =
-                            { shared
-                                | players =
-                                    Dict.update
-                                        id
-                                        (Maybe.map setCode)
-                                        shared.players
-                            }
-                      }
-                        |> BackendPlaying
-                    , Cmd.none
-                    )
-                )
-
-        TBSubmit ->
-            updateGame id
-                model
-                (\preparing ->
-                    let
-                        setReady player =
-                            { player | ready = True }
-
-                        newGame =
-                            { preparing
-                                | players =
-                                    Dict.update
-                                        id
-                                        (Maybe.map setReady)
-                                        preparing.players
-                            }
-                    in
-                    ( BackendPreparing newGame
-                    , if Dict.size newGame.players >= 2 && List.all .ready (Dict.values newGame.players) then
-                        Time.now |> Task.perform (StartGame id)
-
-                      else
-                        Cmd.none
-                    )
-                )
-                (\({ shared } as playing) ->
-                    case Dict.get id shared.players of
-                        Nothing ->
-                            ( BackendPlaying playing, Cmd.none )
-
-                        Just player ->
-                            case player.model of
-                                Won _ ->
-                                    ( BackendPlaying playing, Cmd.none )
-
-                                Guessing { current } ->
-                                    let
-                                        code =
-                                            let
-                                                codesList =
-                                                    Dict.toList playing.codes
-
-                                                go x =
-                                                    case x of
-                                                        [] ->
-                                                            []
-
-                                                        [ ( _, q ) ] ->
-                                                            q
-
-                                                        ( h1, _ ) :: ((( _, h2 ) :: _) as t) ->
-                                                            if h1 == id then
-                                                                h2
-
-                                                            else
-                                                                go t
-                                            in
-                                            go (codesList ++ List.take 1 codesList)
-
-                                        answer =
-                                            getAnswer code current
-
-                                        newPlayer =
-                                            { player
-                                                | history = ( current, answer ) :: player.history
-                                                , model = Guessing { current = [] }
-                                            }
-
-                                        newGame =
-                                            { playing
-                                                | shared =
-                                                    { shared
-                                                        | players = Dict.insert id newPlayer shared.players
-                                                    }
-                                            }
-                                    in
-                                    ( BackendPlaying newGame
-                                    , Time.now |> Task.perform (GotWinTime id)
-                                    )
-                )
-
-        TBNewGame ->
-            updateGame id
-                model
-                (\preparing -> ( BackendPreparing preparing, Cmd.none ))
-                (\({ shared } as playing) ->
-                    if
-                        List.all
-                            (\player ->
-                                case player.model of
-                                    Won _ ->
-                                        True
-
-                                    Guessing _ ->
-                                        False
-                            )
-                            (Dict.values shared.players)
-                    then
-                        ( BackendPreparing
-                            { shared =
-                                { codeLength = String.fromInt playing.shared.codeLength
-                                , colors = playing.shared.colors
-                                }
-                            , players =
-                                Dict.map
-                                    (\_ { username } ->
-                                        { code = []
-                                        , ready = False
-                                        , username = username
-                                        }
-                                    )
-                                    playing.shared.players
-                            }
-                        , Cmd.none
-                        )
-
-                    else
-                        ( BackendPlaying playing, Cmd.none )
-                )
-
-        TBHome ->
-            ( { model | inGame = Dict.remove id model.inGame }
-            , Lamdera.sendToFrontend id <| TFReplaceModel (FrontendHomepage defaultHomepageModel)
-            )
-
-        TBGameSettings shared ->
-            updateGame id
-                model
-                (\preparing ->
-                    ( BackendPreparing
-                        { preparing
-                            | shared = shared
-                            , players = Dict.map (\_ player -> { player | ready = False, code = [] }) preparing.players
-                        }
-                    , Cmd.none
-                    )
-                )
-                (\playing -> ( BackendPlaying playing, Cmd.none ))
+    ( model, Time.now |> Task.perform (\now -> Timed now id msg) )
 
 
 getAnswer : Code -> Code -> Answer

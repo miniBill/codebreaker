@@ -3,7 +3,8 @@ module Types exposing (..)
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
-import Lamdera exposing (ClientId)
+import Lamdera exposing (ClientId, SessionId)
+import Set exposing (Set)
 import Time
 import Url exposing (Url)
 
@@ -66,6 +67,7 @@ type alias PreparingUser =
 type alias PreparingBackendModel =
     { shared : PreparingSharedModel
     , players : Dict Id PreparingUser
+    , lastAction : Time.Posix
     }
 
 
@@ -88,6 +90,7 @@ type alias PlayingFrontendModel =
 type alias PlayingBackendModel =
     { shared : PlayingSharedModel
     , codes : Dict ClientId Code
+    , lastAction : Time.Posix
     }
 
 
@@ -100,8 +103,10 @@ type alias Context =
 
 
 type alias BackendModel =
-    { inGame : Dict ClientId GameName
+    { inGame : Dict Id GameName
     , games : Dict String GameModel
+    , connected : Dict SessionId (Set ClientId)
+    , adminSessions : Set ClientId
     }
 
 
@@ -186,11 +191,17 @@ type ToBackend
     | TBGameSettings PreparingSharedModel
 
 
+
+--| TBAdmin String TBAdminCommand
+-- type TBAdminCommand
+--     = TBListGames
+--     | TBDestroyGame GameName
+
+
 type BackendMsg
-    = StartGame ClientId Time.Posix
-    | GotWinTime ClientId Time.Posix
-    | ClientConnected Lamdera.SessionId ClientId
-    | ClientDisconnected Lamdera.SessionId ClientId
+    = Timed Time.Posix Id ToBackend
+    | ClientConnected SessionId ClientId
+    | ClientDisconnected SessionId ClientId
 
 
 type ToFrontend
