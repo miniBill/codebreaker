@@ -1,4 +1,4 @@
-module Element.WithContext.Extra exposing (..)
+module Element.WithContext.Extra exposing (onEnter)
 
 import Element.WithContext as Element exposing (Attribute)
 import Html.Events
@@ -20,4 +20,3 @@ onEnter msg =
                     )
             )
         )
- 

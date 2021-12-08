@@ -1,4 +1,4 @@
-module Backend exposing (..)
+module Backend exposing (app)
 
 import Dict
 import Lamdera exposing (ClientId, SessionId)
@@ -312,11 +312,11 @@ updateFromFrontend sessionId clientId msg model =
 
                                 Guessing { current } ->
                                     let
-                                        codesList =
-                                            Dict.toList playing.codes
-
                                         code =
                                             let
+                                                codesList =
+                                                    Dict.toList playing.codes
+
                                                 go x =
                                                     case x of
                                                         [] ->

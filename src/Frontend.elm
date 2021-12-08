@@ -1,4 +1,4 @@
-module Frontend exposing (..)
+module Frontend exposing (app)
 
 import Browser exposing (UrlRequest(..))
 import Browser.Dom
@@ -577,22 +577,21 @@ viewCode attrs =
 
 viewColor : { backgroundColor : Element.Color, symbol : String } -> Element msg
 viewColor { backgroundColor, symbol } =
-    Element.with .colorblindMode <|
-        \colorblindMode ->
-            if colorblindMode then
-                el [ centerX, centerY, Theme.fontSizes.big ] <|
-                    text symbol
+    Element.with .colorblindMode <| \colorblindMode ->
+    if colorblindMode then
+        el [ centerX, centerY, Theme.fontSizes.big ] <|
+            text symbol
 
-            else
-                el
-                    [ width <| px 20
-                    , height <| px 20
-                    , Background.color backgroundColor
-                    , Border.rounded 20
-                    , Border.width 1
-                    , Border.color <| Element.rgb 0 0 0
-                    ]
-                    Element.none
+    else
+        el
+            [ width <| px 20
+            , height <| px 20
+            , Background.color backgroundColor
+            , Border.rounded 20
+            , Border.width 1
+            , Border.color <| Element.rgb 0 0 0
+            ]
+            Element.none
 
 
 viewHomepage : String -> HomepageModel -> List (Element FrontendMsg)
