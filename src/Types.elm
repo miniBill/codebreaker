@@ -168,6 +168,7 @@ type FrontendMsg
     | ColorblindMode Bool
     | NewGame
     | Home
+    | FrontendNoop
 
 
 type ToBackend

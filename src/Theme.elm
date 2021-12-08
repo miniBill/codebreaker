@@ -1,7 +1,7 @@
-module Theme exposing (Attr, Attribute, Element, borderRounded, borderWidth, button, colors, column, fontSizes, padding, row, rythm, spacing, wrappedRow)
+module Theme exposing (Attr, Attribute, Element, borderRounded, borderWidth, button, colors, column, fontSizes, input, padding, row, rythm, spacing, wrappedRow)
 
 import Color
-import Element.WithContext as Element exposing (Color)
+import Element.WithContext as Element exposing (Color, fill, width)
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
 import Element.WithContext.Font as Font
@@ -123,3 +123,31 @@ colors =
 toElmUi : Color.Color -> Color
 toElmUi =
     Color.toRgba >> Element.fromRgb
+
+
+input :
+    List (Attribute msg)
+    ->
+        { validate : String -> Bool
+        , label : String
+        , text : String
+        , placeholder : String
+        , onChange : String -> msg
+        }
+    -> Element msg
+input attrs { validate, label, text, placeholder, onChange } =
+    Input.text
+        (if String.isEmpty text || validate text then
+            width fill :: attrs
+
+         else
+            [ Background.color <| Element.rgb 1 0.8 0.8
+            , width fill
+            ]
+                ++ attrs
+        )
+        { label = Input.labelAbove [] <| Element.text label
+        , text = text
+        , onChange = onChange
+        , placeholder = Just <| Input.placeholder [] <| Element.text placeholder
+        }

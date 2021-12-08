@@ -1,6 +1,7 @@
 module Frontend exposing (..)
 
 import Browser exposing (UrlRequest(..))
+import Browser.Dom
 import Browser.Navigation as Nav exposing (Key)
 import Dict
 import Element.WithContext as Element exposing (alignBottom, alignRight, alignTop, centerX, centerY, el, fill, height, inFront, padding, paddingXY, px, spacing, text, width)
@@ -8,9 +9,11 @@ import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
 import Element.WithContext.Extra as Extra
 import Element.WithContext.Font as Font
-import Element.WithContext.Input as Input exposing (username)
+import Element.WithContext.Input as Input
+import Html.Attributes
 import Lamdera
 import List.Extra
+import Task
 import Theme exposing (Attribute, Element)
 import Types exposing (..)
 import Url
@@ -121,26 +124,44 @@ update msg model =
         Home ->
             ( model, Lamdera.sendToBackend TBHome )
 
+        FrontendNoop ->
+            ( model, Cmd.none )
+
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 updateFromBackend msg model =
     case msg of
         TFReplaceModel inner ->
             let
-                inner_ =
+                ( inner_, cmd ) =
                     case ( model.inner, inner ) of
                         ( FrontendConnecting gameName, FrontendHomepage homepage ) ->
-                            FrontendHomepage { homepage | gameName = gameName }
+                            ( FrontendHomepage { homepage | gameName = gameName }
+                            , if normalizeGameName gameName == "" then
+                                focus ids.gamename
+
+                              else
+                                focus ids.username
+                            )
 
                         _ ->
-                            inner
+                            ( inner, Cmd.none )
             in
             ( { model | inner = inner_ }
-            , Nav.replaceUrl model.key <| innerModelToUrl inner_
+            , Cmd.batch
+                [ cmd
+                , Nav.replaceUrl model.key <| innerModelToUrl inner_
+                ]
             )
 
         TFError error ->
             ( { model | error = error }, Cmd.none )
+
+
+focus : DomId -> Cmd FrontendMsg
+focus (DomId id) =
+    Browser.Dom.focus id
+        |> Task.attempt (\_ -> FrontendNoop)
 
 
 innerModelToUrl : InnerFrontendModel -> String
@@ -436,7 +457,7 @@ viewPreparing ({ shared } as preparingModel) =
         sharedInput =
             Theme.column [ padding 0, centerX ]
                 [ el [ width fill ] <|
-                    input []
+                    Theme.input []
                         { validate = isInt
                         , label = "Length"
                         , text = shared.codeLength
@@ -444,7 +465,7 @@ viewPreparing ({ shared } as preparingModel) =
                         , placeholder = "4"
                         }
                 , el [ width fill ] <|
-                    input []
+                    Theme.input []
                         { validate = isInt
                         , label = "Colors"
                         , text = shared.colors
@@ -459,15 +480,11 @@ viewPreparing ({ shared } as preparingModel) =
                 |> List.filter (\( id, _ ) -> id /= Tuple.first preparingModel.me)
                 |> List.map
                     (\( _, { username, ready } ) ->
-                        text <|
-                            username
-                                ++ ": "
-                                ++ (if ready then
-                                        "Ready"
+                        if ready then
+                            text <| username ++ ": Ready"
 
-                                    else
-                                        "Preparing"
-                                   )
+                        else
+                            text <| username ++ ": Preparing"
                     )
                 |> Theme.column [ padding 0, centerX ]
 
@@ -560,21 +577,22 @@ viewCode attrs =
 
 viewColor : { backgroundColor : Element.Color, symbol : String } -> Element msg
 viewColor { backgroundColor, symbol } =
-    Element.with .colorblindMode <| \colorblindMode ->
-    if colorblindMode then
-        el [ centerX, centerY, Theme.fontSizes.big ] <|
-            text symbol
+    Element.with .colorblindMode <|
+        \colorblindMode ->
+            if colorblindMode then
+                el [ centerX, centerY, Theme.fontSizes.big ] <|
+                    text symbol
 
-    else
-        el
-            [ width <| px 20
-            , height <| px 20
-            , Background.color backgroundColor
-            , Border.rounded 20
-            , Border.width 1
-            , Border.color <| Element.rgb 0 0 0
-            ]
-            Element.none
+            else
+                el
+                    [ width <| px 20
+                    , height <| px 20
+                    , Background.color backgroundColor
+                    , Border.rounded 20
+                    , Border.width 1
+                    , Border.color <| Element.rgb 0 0 0
+                    ]
+                    Element.none
 
 
 viewHomepage : String -> HomepageModel -> List (Element FrontendMsg)
@@ -590,14 +608,14 @@ viewHomepage error homepageModel =
     in
     [ text "Welcome to Codebreaker!"
     , Theme.row [ padding 0, width fill ]
-        [ input [ Extra.onEnter UpsertGame ]
+        [ Theme.input [ Extra.onEnter UpsertGame, idAttribute ids.gamename ]
             { validate = always True
             , label = "Game name"
             , text = rawGameName homepageModel.gameName
             , placeholder = "Game name"
             , onChange = \newGameName -> HomepageMsg { homepageModel | gameName = GameName newGameName }
             }
-        , input [ Extra.onEnter UpsertGame ]
+        , Theme.input [ Extra.onEnter UpsertGame, idAttribute ids.username ]
             { validate = always True
             , label = "User name"
             , text = homepageModel.username
@@ -615,32 +633,20 @@ viewHomepage error homepageModel =
     ]
 
 
-input :
-    List (Attribute msg)
-    ->
-        { validate : String -> Bool
-        , label : String
-        , text : String
-        , placeholder : String
-        , onChange : String -> msg
-        }
-    -> Element msg
-input attrs { validate, label, text, placeholder, onChange } =
-    Input.text
-        (if String.isEmpty text || validate text then
-            width fill :: attrs
+type DomId
+    = DomId String
 
-         else
-            [ Background.color <| Element.rgb 1 0.8 0.8
-            , width fill
-            ]
-                ++ attrs
-        )
-        { label = Input.labelAbove [] <| Element.text label
-        , text = text
-        , onChange = onChange
-        , placeholder = Just <| Input.placeholder [] <| Element.text placeholder
-        }
+
+idAttribute : DomId -> Attribute FrontendMsg
+idAttribute (DomId id) =
+    Element.htmlAttribute <| Html.Attributes.id id
+
+
+ids : { gamename : DomId, username : DomId }
+ids =
+    { gamename = DomId "gamename"
+    , username = DomId "username"
+    }
 
 
 title : FrontendModel -> String
