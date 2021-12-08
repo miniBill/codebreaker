@@ -506,13 +506,12 @@ viewPreparing { rootUrl, colorblindMode } ({ shared } as preparingModel) =
                         , onChange = \newLength -> SetGameSettings { shared | codeLength = newLength }
                         , placeholder = "4"
                         }
-                , text "Colors"
                 , let
-                    rows =
+                    rowCount =
                         3
 
                     rowSize =
-                        (List.length Theme.colors + (rows - 1)) // rows
+                        (List.length Theme.colors + (rowCount - 1)) // rowCount
                   in
                   Theme.colors
                     |> List.Extra.greedyGroupsOf rowSize
@@ -596,7 +595,7 @@ viewPreparing { rootUrl, colorblindMode } ({ shared } as preparingModel) =
                                                 else
                                                     index == shared.colors - 1
                                             , borderColor "bottom" <|
-                                                if rowIndex == rows - 1 then
+                                                if rowIndex == rowCount - 1 then
                                                     active
 
                                                 else
@@ -605,7 +604,11 @@ viewPreparing { rootUrl, colorblindMode } ({ shared } as preparingModel) =
                                 )
                                 >> Element.row []
                         )
-                    |> Element.column []
+                    |> (::)
+                        (el [ Element.paddingEach { left = 0, top = 0, bottom = Theme.rythm, right = 0 } ]
+                            (text <| "Colors: " ++ String.fromInt shared.colors)
+                        )
+                    |> Element.column [ centerX ]
                 ]
 
         viewOthers =
