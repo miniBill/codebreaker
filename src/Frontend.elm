@@ -4,7 +4,7 @@ import Browser exposing (UrlRequest(..))
 import Browser.Dom
 import Browser.Navigation as Nav exposing (Key)
 import Dict
-import Element.WithContext as Element exposing (alignBottom, alignRight, alignTop, centerX, centerY, el, fill, height, inFront, padding, paddingXY, px, spacing, text, width)
+import Element.WithContext as Element exposing (alignBottom, alignRight, alignTop, centerX, centerY, el, fill, height, inFront, padding, paddingXY, paragraph, px, spacing, text, width)
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
 import Element.WithContext.Extra as Extra
@@ -16,7 +16,8 @@ import List.Extra
 import Task
 import Theme exposing (Attribute, Element)
 import Types exposing (..)
-import Url
+import Url exposing (Url)
+import Url.Builder
 import Url.Parser
 
 
@@ -49,7 +50,7 @@ urlParser =
         ]
 
 
-init : Url.Url -> Nav.Key -> ( FrontendModel, Cmd FrontendMsg )
+init : Url -> Nav.Key -> ( FrontendModel, Cmd FrontendMsg )
 init url key =
     ( { key = key
       , inner =
@@ -61,9 +62,32 @@ init url key =
                 |> FrontendConnecting
       , error = ""
       , colorblindMode = False
+      , rootUrl = getRootUrl url
       }
     , Cmd.none
     )
+
+
+getRootUrl : Url -> String
+getRootUrl { protocol, host, port_ } =
+    let
+        protocolString =
+            case protocol of
+                Url.Http ->
+                    "http"
+
+                Url.Https ->
+                    "https"
+
+        portString =
+            case port_ of
+                Nothing ->
+                    ""
+
+                Just p ->
+                    ":" ++ String.fromInt p
+    in
+    protocolString ++ "://" ++ host ++ portString
 
 
 update : FrontendMsg -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
@@ -166,11 +190,14 @@ focus (DomId id) =
 
 innerModelToUrl : InnerFrontendModel -> String
 innerModelToUrl model =
-    let
-        gameNameToUrl gameName =
-            "/" ++ String.replace " " "-" (normalizeGameName gameName)
-    in
     gameNameToUrl <| getGameName model
+
+
+gameNameToUrl : GameName -> String
+gameNameToUrl gameName =
+    Url.Builder.absolute
+        [ String.replace " " "-" (normalizeGameName gameName) ]
+        []
 
 
 getGameName : InnerFrontendModel -> GameName
@@ -246,7 +273,7 @@ view model =
                     viewHomepage model.error homepage
 
                 FrontendPreparing preparing ->
-                    viewPreparing preparing
+                    viewPreparing model preparing
 
                 FrontendPlaying playing ->
                     viewPlaying playing
@@ -445,8 +472,8 @@ viewAnswer codeLength { black, white } =
         |> Element.column [ spacing 2 ]
 
 
-viewPreparing : PreparingFrontendModel -> List (Element FrontendMsg)
-viewPreparing ({ shared } as preparingModel) =
+viewPreparing : { a | rootUrl : String } -> PreparingFrontendModel -> List (Element FrontendMsg)
+viewPreparing { rootUrl } ({ shared } as preparingModel) =
     let
         me =
             Tuple.second preparingModel.me
@@ -456,7 +483,15 @@ viewPreparing ({ shared } as preparingModel) =
 
         sharedInput =
             Theme.column [ padding 0, centerX ]
-                [ el [ width fill ] <|
+                [ Theme.column [ padding 0 ]
+                    [ text "The game URL is: "
+                    , let
+                        url =
+                            rootUrl ++ gameNameToUrl preparingModel.gameName
+                      in
+                      Element.link [ Font.underline ] { url = url, label = text url }
+                    ]
+                , el [ width fill ] <|
                     Theme.input []
                         { validate = isInt
                         , label = "Length"

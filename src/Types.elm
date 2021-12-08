@@ -13,6 +13,7 @@ type alias FrontendModel =
     , inner : InnerFrontendModel
     , error : String
     , colorblindMode : Bool
+    , rootUrl : String
     }
 
 
