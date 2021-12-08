@@ -474,7 +474,11 @@ viewPlayingPlayer shared { username, history, model, opponentId } rest =
                 Background.color <| Element.rgb 1 1 1
         ]
         ([ el [ Font.bold, centerX ] <| text username
-         , el [ centerX ] <| text <| "Guessing " ++ opponent
+         , if Dict.size shared.players == 2 then
+            Element.none
+
+           else
+            el [ centerX ] <| text <| "Guessing " ++ opponent
          , viewHistory shared history
          ]
             ++ rest
