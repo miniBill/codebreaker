@@ -4,7 +4,7 @@ import Browser exposing (UrlRequest(..))
 import Browser.Dom
 import Browser.Navigation as Nav exposing (Key)
 import Dict
-import Element.WithContext as Element exposing (alignBottom, alignRight, alignTop, centerX, centerY, el, fill, height, inFront, padding, paddingXY, px, spacing, text, width)
+import Element.WithContext as Element exposing (alignBottom, alignRight, alignTop, centerX, centerY, el, fill, height, padding, paddingXY, px, spacing, text, width)
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
 import Element.WithContext.Extra as Extra
