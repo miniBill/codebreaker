@@ -75,7 +75,14 @@ type alias PlayingSharedModel =
     { colors : Int
     , codeLength : Int
     , startTime : Time.Posix
-    , players : Dict ClientId { username : String, history : PlayerMoves, model : PlayerModel }
+    , players : Dict ClientId PlayingPlayerModel
+    }
+
+
+type alias PlayingPlayerModel =
+    { username : String
+    , history : PlayerMoves
+    , model : PlayerModel
     }
 
 

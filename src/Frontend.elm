@@ -4,7 +4,7 @@ import Browser exposing (UrlRequest(..))
 import Browser.Dom
 import Browser.Navigation as Nav exposing (Key)
 import Dict
-import Element.WithContext as Element exposing (alignBottom, alignRight, alignTop, centerX, centerY, el, fill, height, padding, paddingXY, px, spacing, text, width)
+import Element.WithContext as Element exposing (alignBottom, alignRight, alignTop, centerX, centerY, el, fill, height, padding, paddingXY, paragraph, px, spacing, text, width)
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
 import Element.WithContext.Extra as Extra
@@ -15,6 +15,7 @@ import Lamdera
 import List.Extra
 import Task
 import Theme exposing (Attribute, Element)
+import Time
 import Types exposing (..)
 import Url exposing (Url)
 import Url.Builder
@@ -324,15 +325,10 @@ view model =
 viewPlaying : PlayingFrontendModel -> List (Element FrontendMsg)
 viewPlaying playingModel =
     let
-        config =
-            { codeLength = playingModel.shared.codeLength
-            , colors = playingModel.shared.colors
-            }
-
         meViews =
             case Dict.get playingModel.me playingModel.shared.players of
                 Just me ->
-                    viewMePlaying config me
+                    viewMePlaying playingModel.shared me
 
                 Nothing ->
                     []
@@ -342,7 +338,7 @@ viewPlaying playingModel =
                 |> Dict.toList
                 |> List.filter (\( i, _ ) -> i /= playingModel.me)
                 |> List.map Tuple.second
-                |> List.map (viewOther config)
+                |> List.map (viewOther playingModel.shared)
     in
     [ case playingModel.code of
         Nothing ->
@@ -371,18 +367,17 @@ viewPlaying playingModel =
     ]
 
 
-viewMePlaying :
-    { codeLength : Int, colors : Int }
-    -> { username : String, history : PlayerMoves, model : PlayerModel }
-    -> List (Element FrontendMsg)
-viewMePlaying ({ codeLength } as config) data =
+viewMePlaying : PlayingSharedModel -> PlayingPlayerModel -> List (Element FrontendMsg)
+viewMePlaying ({ startTime, codeLength } as shared) player =
     let
-        shared =
-            viewPlayingPlayer config
-                { data | username = "You" }
-                (case data.model of
-                    Won _ ->
-                        [ text "You guessed the code!" ]
+        sharedView =
+            viewPlayingPlayer shared
+                { player | username = "You" }
+                (case player.model of
+                    Won { winTime } ->
+                        [ paragraph []
+                            [ text <| "You guessed the code in " ++ formatDelta startTime winTime ]
+                        ]
 
                     Guessing { current } ->
                         [ el [ centerX ] <| text "Still guessing..."
@@ -390,43 +385,58 @@ viewMePlaying ({ codeLength } as config) data =
                         ]
                 )
     in
-    case data.model of
+    case player.model of
         Won _ ->
-            [ shared ]
+            [ sharedView ]
 
         Guessing { current } ->
+            let
+                acceptableCode =
+                    List.all ((/=) -1) current
+                        && (List.length current == codeLength)
+            in
             [ Theme.row [ padding 0, alignTop ]
-                [ shared
+                [ sharedView
                 , Theme.column
                     [ Theme.borderRounded
                     , Theme.borderWidth
                     , alignBottom
                     ]
                     [ el [ centerX, Font.bold ] <| text "Your next guess:"
-                    , Element.map SetCode <|
-                        codeInput config current
+                    , Element.map SetCode <| codeInput shared current
                     , Theme.button
-                        [ Element.transparent <|
-                            List.any ((==) -1) current
-                                || (List.length current /= codeLength)
+                        [ Element.transparent <| not acceptableCode
                         , centerX
                         ]
-                        { onPress = Submit, label = text "Submit" }
+                        { onPress = Submit
+                        , label = text "Submit"
+                        }
                     ]
                 ]
             ]
 
 
-viewOther :
-    { a | codeLength : Int }
-    -> { username : String, history : PlayerMoves, model : PlayerModel }
-    -> Element msg
-viewOther ({ codeLength } as config) data =
-    viewPlayingPlayer config
-        data
-        (case data.model of
-            Won _ ->
-                [ text "They guessed the code!" ]
+formatDelta : Time.Posix -> Time.Posix -> String
+formatDelta from to =
+    let
+        diff =
+            (Time.posixToMillis to - Time.posixToMillis from) // 1000
+
+        pad n i =
+            String.fromInt i |> String.padLeft n '0'
+    in
+    pad 0 (diff // 60) ++ "m " ++ pad 2 (modBy 60 diff) ++ "s"
+
+
+viewOther : PlayingSharedModel -> PlayingPlayerModel -> Element msg
+viewOther ({ startTime, codeLength } as shared) player =
+    viewPlayingPlayer shared
+        player
+        (case player.model of
+            Won { winTime } ->
+                [ paragraph []
+                    [ text <| "They guessed the code in " ++ formatDelta startTime winTime ]
+                ]
 
             Guessing { current } ->
                 [ el [ centerX ] <| text "Is guessing"
@@ -435,8 +445,8 @@ viewOther ({ codeLength } as config) data =
         )
 
 
-viewPlayingPlayer : { a | codeLength : Int } -> { username : String, history : PlayerMoves, model : PlayerModel } -> List (Element msg) -> Element msg
-viewPlayingPlayer config { username, history, model } rest =
+viewPlayingPlayer : PlayingSharedModel -> PlayingPlayerModel -> List (Element msg) -> Element msg
+viewPlayingPlayer shared { username, history, model } rest =
     Theme.column
         [ Theme.borderWidth
         , Theme.borderRounded
@@ -449,7 +459,7 @@ viewPlayingPlayer config { username, history, model } rest =
                 Background.color <| Element.rgb 1 1 1
         ]
         ([ el [ Font.bold, centerX ] <| text username
-         , viewHistory config history
+         , viewHistory shared history
          ]
             ++ rest
         )
