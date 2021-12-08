@@ -31,15 +31,15 @@ type alias HomepageModel =
 
 
 type alias PreparingSharedModel =
-    { colors : String
+    { colors : Int
     , codeLength : String
     }
 
 
-preparingSharedParse : { a | codeLength : String, colors : String } -> { codeLength : Int, colors : Int }
+preparingSharedParse : { a | codeLength : String, colors : Int } -> { codeLength : Int, colors : Int }
 preparingSharedParse shared =
     { codeLength = Maybe.withDefault 4 <| String.toInt shared.codeLength
-    , colors = Maybe.withDefault 8 <| String.toInt shared.colors
+    , colors = shared.colors
     }
 
 

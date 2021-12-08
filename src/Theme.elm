@@ -1,4 +1,4 @@
-module Theme exposing (Attr, Attribute, Element, borderRounded, borderWidth, button, colors, column, fontSizes, input, padding, row, rythm, spacing, wrappedRow)
+module Theme exposing (Attr, Attribute, Element, borderRounded, borderWidth, button, colors, column, desaturate, fontSizes, input, padding, row, rythm, spacing, wrappedRow)
 
 import Color
 import Element.WithContext as Element exposing (Color, fill, width)
@@ -151,3 +151,31 @@ input attrs { validate, label, text, placeholder, onChange } =
         , onChange = onChange
         , placeholder = Just <| Input.placeholder [] <| Element.text placeholder
         }
+
+
+desaturate : Color -> Color
+desaturate =
+    manipulateHsl
+        (\c ->
+            { c
+                | saturation = 0.1
+                , lightness = 0.5
+            }
+        )
+
+
+manipulateHsl :
+    ({ hue : Float, saturation : Float, lightness : Float, alpha : Float }
+     -> { hue : Float, saturation : Float, lightness : Float, alpha : Float }
+    )
+    -> Color
+    -> Color
+manipulateHsl f color =
+    color
+        |> Element.toRgb
+        |> Color.fromRgba
+        |> Color.toHsla
+        |> f
+        |> Color.fromHsla
+        |> Color.toRgba
+        |> Element.fromRgb

@@ -207,7 +207,7 @@ updateFromFrontend sessionId clientId msg model =
                             Nothing ->
                                 BackendPreparing
                                     { shared =
-                                        { colors = ""
+                                        { colors = 8
                                         , codeLength = ""
                                         }
                                     , players =
@@ -376,7 +376,7 @@ updateFromFrontend sessionId clientId msg model =
                         ( BackendPreparing
                             { shared =
                                 { codeLength = String.fromInt playing.shared.codeLength
-                                , colors = String.fromInt playing.shared.colors
+                                , colors = playing.shared.colors
                                 }
                             , players =
                                 Dict.map

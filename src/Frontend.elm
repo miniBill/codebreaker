@@ -234,6 +234,20 @@ outerView model =
 view : FrontendModel -> Element FrontendMsg
 view model =
     let
+        maybeHomeButton active =
+            case model.inner of
+                FrontendConnecting _ ->
+                    Element.none
+
+                FrontendHomepage _ ->
+                    Element.none
+
+                FrontendPreparing _ ->
+                    homeButton active
+
+                FrontendPlaying _ ->
+                    homeButton active
+
         header =
             Theme.row
                 [ width fill
@@ -241,27 +255,10 @@ view model =
                 , Font.center
                 , Theme.fontSizes.big
                 , padding 0
-                , inFront <|
-                    case model.inner of
-                        FrontendConnecting _ ->
-                            Element.none
-
-                        FrontendHomepage _ ->
-                            Element.none
-
-                        FrontendPreparing _ ->
-                            Theme.button []
-                                { onPress = Home
-                                , label = text "🏠"
-                                }
-
-                        FrontendPlaying _ ->
-                            Theme.button []
-                                { onPress = Home
-                                , label = text "🏠"
-                                }
                 ]
-                [ el [ centerX ] <| text <| title model
+                [ maybeHomeButton True
+                , el [ centerX, centerY ] <| text <| title model
+                , maybeHomeButton False
                 ]
 
         body =
@@ -287,6 +284,16 @@ view model =
                     , icon = Input.defaultCheckbox
                     }
             ]
+
+        homeButton active =
+            if active then
+                Theme.button []
+                    { onPress = Home
+                    , label = text "🏠"
+                    }
+
+            else
+                el [ Element.transparent True ] <| text "🏠"
     in
     Theme.column [ width fill, height fill ]
         (header :: body ++ accessibility)
@@ -472,8 +479,8 @@ viewAnswer codeLength { black, white } =
         |> Element.column [ spacing 2 ]
 
 
-viewPreparing : { a | rootUrl : String } -> PreparingFrontendModel -> List (Element FrontendMsg)
-viewPreparing { rootUrl } ({ shared } as preparingModel) =
+viewPreparing : { a | rootUrl : String, colorblindMode : Bool } -> PreparingFrontendModel -> List (Element FrontendMsg)
+viewPreparing { rootUrl, colorblindMode } ({ shared } as preparingModel) =
     let
         me =
             Tuple.second preparingModel.me
@@ -499,14 +506,106 @@ viewPreparing { rootUrl } ({ shared } as preparingModel) =
                         , onChange = \newLength -> SetGameSettings { shared | codeLength = newLength }
                         , placeholder = "4"
                         }
-                , el [ width fill ] <|
-                    Theme.input []
-                        { validate = isInt
-                        , label = "Colors"
-                        , text = shared.colors
-                        , onChange = \newColors -> SetGameSettings { shared | colors = newColors }
-                        , placeholder = "8"
-                        }
+                , text "Colors"
+                , let
+                    rows =
+                        3
+
+                    rowSize =
+                        (List.length Theme.colors + (rows - 1)) // rows
+                  in
+                  Theme.colors
+                    |> List.Extra.greedyGroupsOf rowSize
+                    |> List.indexedMap
+                        (\rowIndex ->
+                            List.indexedMap
+                                (\columnIndex color ->
+                                    let
+                                        index =
+                                            rowIndex * rowSize + columnIndex
+
+                                        active =
+                                            index < shared.colors
+
+                                        borderColor direction colored =
+                                            Element.htmlAttribute <|
+                                                Html.Attributes.style ("border-" ++ direction ++ "-color")
+                                                    (if colored then
+                                                        "black"
+
+                                                     else
+                                                        "white"
+                                                    )
+                                    in
+                                    Input.button
+                                        [ Theme.borderRounded
+                                        , Element.htmlAttribute <|
+                                            Html.Attributes.style "filter" <|
+                                                if active || not colorblindMode then
+                                                    ""
+
+                                                else
+                                                    "grayscale(100%)"
+                                        ]
+                                        { onPress = Just <| SetGameSettings { shared | colors = index + 1 }
+                                        , label =
+                                            { color
+                                                | backgroundColor =
+                                                    if active then
+                                                        color.backgroundColor
+
+                                                    else
+                                                        Theme.desaturate color.backgroundColor
+                                            }
+                                                |> viewColor
+                                        }
+                                        |> el
+                                            [ Element.padding 4
+                                            , Border.widthEach
+                                                { left =
+                                                    if columnIndex == 0 then
+                                                        1
+
+                                                    else
+                                                        0
+                                                , top =
+                                                    if rowIndex == 0 then
+                                                        1
+
+                                                    else
+                                                        0
+                                                , right = 1
+                                                , bottom = 1
+                                                }
+                                            , borderColor "top" <|
+                                                if rowIndex == 0 then
+                                                    active
+
+                                                else
+                                                    False
+                                            , borderColor "left" <|
+                                                if columnIndex == 0 then
+                                                    active
+
+                                                else
+                                                    False
+                                            , borderColor "right" <|
+                                                if columnIndex == rowSize - 1 then
+                                                    active
+
+                                                else
+                                                    index == shared.colors - 1
+                                            , borderColor "bottom" <|
+                                                if rowIndex == rows - 1 then
+                                                    active
+
+                                                else
+                                                    active && index + rowSize >= shared.colors
+                                            ]
+                                )
+                                >> Element.row []
+                        )
+                    |> Element.column []
                 ]
 
         viewOthers =
