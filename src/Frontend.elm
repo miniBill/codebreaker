@@ -42,11 +42,18 @@ app =
         }
 
 
-urlParser : Url.Parser.Parser (String -> c) c
+urlParser : Url.Parser.Parser (InnerFrontendModel -> c) c
 urlParser =
     Url.Parser.oneOf
-        [ Url.Parser.map (\s -> Maybe.withDefault s <| Url.percentDecode s) Url.Parser.string
-        , Url.Parser.map "" <| Url.Parser.top
+        [ Url.Parser.map
+            (\s ->
+                Url.percentDecode s
+                    |> Maybe.withDefault s
+                    |> String.replace "-" " "
+                    |> GameName
+                    |> FrontendConnecting
+            )
+            Url.Parser.string
         ]
 
 
@@ -56,10 +63,7 @@ init url key =
       , inner =
             url
                 |> Url.Parser.parse urlParser
-                |> Maybe.withDefault ""
-                |> String.replace "-" " "
-                |> GameName
-                |> FrontendConnecting
+                |> Maybe.withDefault (FrontendConnecting <| GameName "")
       , error = ""
       , colorblindMode = False
       , rootUrl = getRootUrl url
@@ -160,7 +164,11 @@ updateFromBackend msg model =
                 ( inner_, cmd ) =
                     case ( model.inner, inner ) of
                         ( FrontendConnecting gameName, FrontendHomepage homepage ) ->
-                            ( FrontendHomepage { homepage | gameName = gameName }
+                            ( if gameName == GameName "admin" then
+                                FrontendAdmin {}
+
+                              else
+                                FrontendHomepage { homepage | gameName = gameName }
                             , if normalizeGameName gameName == "" then
                                 focus ids.gamename
 
@@ -215,6 +223,9 @@ getGameName model =
         FrontendPlaying { gameName } ->
             gameName
 
+        FrontendAdmin _ ->
+            GameName "admin"
+
 
 outerView : FrontendModel -> Browser.Document FrontendMsg
 outerView model =
@@ -242,6 +253,9 @@ view model =
                 FrontendHomepage _ ->
                     Element.none
 
+                FrontendAdmin _ ->
+                    Element.none
+
                 FrontendPreparing _ ->
                     homeButton active
 
@@ -249,31 +263,39 @@ view model =
                     homeButton active
 
         header =
-            Theme.row
-                [ width fill
-                , Font.bold
-                , Font.center
-                , Theme.fontSizes.big
-                , padding 0
-                ]
-                [ maybeHomeButton True
-                , el [ centerX, centerY ] <| text <| title model
-                , maybeHomeButton False
-                ]
+            case title model of
+                "" ->
+                    Element.none
+
+                t ->
+                    Theme.row
+                        [ width fill
+                        , Font.bold
+                        , Font.center
+                        , Theme.fontSizes.big
+                        , padding 0
+                        ]
+                        [ maybeHomeButton True
+                        , el [ centerX, centerY ] <| text t
+                        , maybeHomeButton False
+                        ]
 
         body =
             case model.inner of
                 FrontendConnecting _ ->
-                    [ text "Connecting to server" ]
+                    [ el [ centerX, centerY ] <| text "Connecting to server" ]
+
+                FrontendAdmin _ ->
+                    [ text "TODO" ]
 
                 FrontendHomepage homepage ->
-                    viewHomepage model.error homepage
+                    viewHomepage model.error homepage ++ accessibility
 
                 FrontendPreparing preparing ->
-                    viewPreparing model preparing
+                    viewPreparing model preparing ++ accessibility
 
                 FrontendPlaying playing ->
-                    viewPlaying playing
+                    viewPlaying playing ++ accessibility
 
         accessibility =
             [ el [ centerX ] <|
@@ -296,7 +318,7 @@ view model =
                 el [ Element.transparent True ] <| text "🏠"
     in
     Theme.column [ width fill, height fill ]
-        (header :: body ++ accessibility)
+        (header :: body)
 
 
 viewPlaying : PlayingFrontendModel -> List (Element FrontendMsg)
@@ -787,5 +809,11 @@ title { inner } =
         FrontendPreparing { gameName } ->
             "Codebreaker! - " ++ rawGameName gameName
 
-        _ ->
-            "Codebreaker!"
+        FrontendHomepage { gameName } ->
+            "Codebreaker! - " ++ rawGameName gameName
+
+        FrontendAdmin _ ->
+            ""
+
+        FrontendConnecting _ ->
+            ""

@@ -22,6 +22,7 @@ type InnerFrontendModel
     | FrontendHomepage HomepageModel
     | FrontendPreparing PreparingFrontendModel
     | FrontendPlaying PlayingFrontendModel
+    | FrontendAdmin AdminModel
 
 
 type alias HomepageModel =
@@ -88,6 +89,10 @@ type alias PlayingBackendModel =
     { shared : PlayingSharedModel
     , codes : Dict ClientId Code
     }
+
+
+type alias AdminModel =
+    {}
 
 
 type alias Context =
