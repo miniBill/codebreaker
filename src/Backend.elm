@@ -232,7 +232,7 @@ fromFrontendTimed now id msg model =
                                             { username = username
                                             , history = []
                                             , model = Guessing { current = [] }
-                                            , opponent = getOpponent pid newGame.players
+                                            , opponentId = getOpponent pid newGame.players
                                             }
                                         )
                                         newGame.players
@@ -259,7 +259,7 @@ fromFrontendTimed now id msg model =
                                 Guessing { current } ->
                                     let
                                         code =
-                                            Dict.get player.opponent playing.codes |> Maybe.withDefault []
+                                            Dict.get player.opponentId playing.codes |> Maybe.withDefault []
 
                                         answer =
                                             getAnswer code current

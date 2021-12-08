@@ -80,7 +80,7 @@ type alias PlayingPlayerModel =
     { username : String
     , history : PlayerMoves
     , model : PlayerModel
-    , opponent : String
+    , opponentId : String
     }
 
 

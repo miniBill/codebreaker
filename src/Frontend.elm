@@ -455,7 +455,13 @@ viewOther ({ startTime, codeLength } as shared) player =
 
 
 viewPlayingPlayer : PlayingSharedModel -> PlayingPlayerModel -> List (Element msg) -> Element msg
-viewPlayingPlayer shared { username, history, model, opponent } rest =
+viewPlayingPlayer shared { username, history, model, opponentId } rest =
+    let
+        opponent =
+            Dict.get opponentId shared.players
+                |> Maybe.map .username
+                |> Maybe.withDefault ""
+    in
     Theme.column
         [ Theme.borderWidth
         , Theme.borderRounded
