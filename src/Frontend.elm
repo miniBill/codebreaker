@@ -489,127 +489,120 @@ viewPreparing { rootUrl, colorblindMode } ({ shared } as preparingModel) =
             String.toInt x /= Nothing
 
         sharedInput =
-            Theme.column [ padding 0, centerX ]
-                [ Theme.column [ padding 0 ]
-                    [ text "The game URL is: "
-                    , let
-                        url =
-                            rootUrl ++ gameNameToUrl preparingModel.gameName
-                      in
-                      Element.link [ Font.underline ] { url = url, label = text url }
-                    ]
-                , el [ width fill ] <|
-                    Theme.input []
-                        { validate = isInt
-                        , label = "Length"
-                        , text = shared.codeLength
-                        , onChange = \newLength -> SetGameSettings { shared | codeLength = newLength }
-                        , placeholder = "4"
-                        }
-                , let
-                    rowCount =
-                        3
+            [ text "The game URL is: "
+            , let
+                url =
+                    rootUrl ++ gameNameToUrl preparingModel.gameName
+              in
+              Element.link [ Font.underline ] { url = url, label = text url }
+            , Theme.input []
+                { validate = isInt
+                , label = "Length"
+                , text = shared.codeLength
+                , onChange = \newLength -> SetGameSettings { shared | codeLength = newLength }
+                , placeholder = "4"
+                }
+            , text <| "Colors: " ++ String.fromInt shared.colors
+            , let
+                rowCount =
+                    4
 
-                    rowSize =
-                        (List.length Theme.colors + (rowCount - 1)) // rowCount
-                  in
-                  Theme.colors
-                    |> List.Extra.greedyGroupsOf rowSize
-                    |> List.indexedMap
-                        (\rowIndex ->
-                            List.indexedMap
-                                (\columnIndex color ->
-                                    let
-                                        index =
-                                            rowIndex * rowSize + columnIndex
+                rowSize =
+                    (List.length Theme.colors + (rowCount - 1)) // rowCount
+              in
+              Theme.colors
+                |> List.Extra.greedyGroupsOf rowSize
+                |> List.indexedMap
+                    (\rowIndex ->
+                        List.indexedMap
+                            (\columnIndex color ->
+                                let
+                                    index =
+                                        rowIndex * rowSize + columnIndex
 
-                                        active =
-                                            index < shared.colors
+                                    active =
+                                        index < shared.colors
 
-                                        borderColor direction colored =
-                                            Element.htmlAttribute <|
-                                                Html.Attributes.style ("border-" ++ direction ++ "-color")
-                                                    (if colored then
-                                                        "black"
+                                    borderColor direction colored =
+                                        Element.htmlAttribute <|
+                                            Html.Attributes.style ("border-" ++ direction ++ "-color")
+                                                (if colored then
+                                                    "black"
 
-                                                     else
-                                                        "white"
-                                                    )
-                                    in
-                                    Input.button
-                                        [ Theme.borderRounded
-                                        , Element.htmlAttribute <|
-                                            Html.Attributes.style "filter" <|
-                                                if active || not colorblindMode then
-                                                    ""
+                                                 else
+                                                    "transparent"
+                                                )
+                                in
+                                Input.button
+                                    [ Theme.borderRounded
+                                    , Element.htmlAttribute <|
+                                        Html.Attributes.style "filter" <|
+                                            if active || not colorblindMode then
+                                                ""
+
+                                            else
+                                                "grayscale(100%)"
+                                    ]
+                                    { onPress = Just <| SetGameSettings { shared | colors = index + 1 }
+                                    , label =
+                                        { color
+                                            | backgroundColor =
+                                                if active then
+                                                    color.backgroundColor
 
                                                 else
-                                                    "grayscale(100%)"
-                                        ]
-                                        { onPress = Just <| SetGameSettings { shared | colors = index + 1 }
-                                        , label =
-                                            { color
-                                                | backgroundColor =
-                                                    if active then
-                                                        color.backgroundColor
-
-                                                    else
-                                                        Theme.desaturate color.backgroundColor
-                                            }
-                                                |> viewColor
+                                                    Theme.desaturate color.backgroundColor
                                         }
-                                        |> el
-                                            [ Element.padding 4
-                                            , Border.widthEach
-                                                { left =
-                                                    if columnIndex == 0 then
-                                                        1
-
-                                                    else
-                                                        0
-                                                , top =
-                                                    if rowIndex == 0 then
-                                                        1
-
-                                                    else
-                                                        0
-                                                , right = 1
-                                                , bottom = 1
-                                                }
-                                            , borderColor "top" <|
-                                                if rowIndex == 0 then
-                                                    active
-
-                                                else
-                                                    False
-                                            , borderColor "left" <|
+                                            |> viewColor
+                                    }
+                                    |> el
+                                        [ padding <| Theme.rythm // 2
+                                        , Border.widthEach
+                                            { left =
                                                 if columnIndex == 0 then
-                                                    active
+                                                    1
 
                                                 else
-                                                    False
-                                            , borderColor "right" <|
-                                                if columnIndex == rowSize - 1 then
-                                                    active
+                                                    0
+                                            , top =
+                                                if rowIndex == 0 then
+                                                    1
 
                                                 else
-                                                    index == shared.colors - 1
-                                            , borderColor "bottom" <|
-                                                if rowIndex == rowCount - 1 then
-                                                    active
+                                                    0
+                                            , right = 1
+                                            , bottom = 1
+                                            }
+                                        , borderColor "top" <|
+                                            if rowIndex == 0 then
+                                                active
 
-                                                else
-                                                    active && index + rowSize >= shared.colors
-                                            ]
-                                )
-                                >> Element.row []
-                        )
-                    |> (::)
-                        (el [ Element.paddingEach { left = 0, top = 0, bottom = Theme.rythm, right = 0 } ]
-                            (text <| "Colors: " ++ String.fromInt shared.colors)
-                        )
-                    |> Element.column [ centerX ]
-                ]
+                                            else
+                                                False
+                                        , borderColor "left" <|
+                                            if columnIndex == 0 then
+                                                active
+
+                                            else
+                                                False
+                                        , borderColor "right" <|
+                                            if columnIndex == rowSize - 1 then
+                                                active
+
+                                            else
+                                                index == shared.colors - 1
+                                        , borderColor "bottom" <|
+                                            if rowIndex == rowCount - 1 then
+                                                active
+
+                                            else
+                                                active && index + rowSize >= shared.colors
+                                        ]
+                            )
+                            >> Element.row []
+                    )
+                |> Element.column [ centerX ]
+            ]
 
         viewOthers =
             preparingModel.players
@@ -623,37 +616,37 @@ viewPreparing { rootUrl, colorblindMode } ({ shared } as preparingModel) =
                         else
                             text <| username ++ ": Preparing"
                     )
-                |> Theme.column [ padding 0, centerX ]
 
         sharedParsed =
             preparingSharedParse shared
+
+        children =
+            sharedInput
+                ++ (if me.ready then
+                        [ Element.text "Wait for other players"
+                        , viewCode [ Theme.borderWidth, centerX ] me.code
+                        ]
+
+                    else
+                        [ text <| "Set your secret code, " ++ me.username
+                        , Element.map SetCode <|
+                            codeInput (preparingSharedParse shared) me.code
+                        ]
+                   )
+                ++ [ if
+                        List.all ((/=) -1) me.code
+                            && (List.length me.code == sharedParsed.codeLength)
+                            && not me.ready
+                     then
+                        Theme.button [ centerX ] { onPress = Submit, label = text "Ready" }
+
+                     else
+                        Element.none
+                   , el [ Font.bold ] <| text "Other players"
+                   ]
+                ++ viewOthers
     in
-    sharedInput
-        :: (if me.ready then
-                [ el [ centerX ] <| Element.text "Wait for other players"
-                , viewCode [ Theme.borderWidth, centerX ] me.code
-                ]
-
-            else
-                [ el [ centerX ] <| text <| "Set your secret code, " ++ me.username
-                , Element.map SetCode <|
-                    codeInput (preparingSharedParse shared) me.code
-                ]
-           )
-        ++ [ if
-                List.all ((/=) -1) me.code
-                    && (List.length me.code == sharedParsed.codeLength)
-                    && not me.ready
-             then
-                Theme.button [ centerX ] { onPress = Submit, label = text "Ready" }
-
-             else
-                Element.none
-           , Theme.column [ padding 0, centerX ]
-                [ el [ Font.bold, centerX ] <| text "Other players"
-                , viewOthers
-                ]
-           ]
+    [ Theme.column [ padding 0, centerX ] children ]
 
 
 codeInput : { a | codeLength : Int, colors : Int } -> Code -> Element Code
