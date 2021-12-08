@@ -9,8 +9,5 @@
 9. Leaderboard
 10. game name change flash
 11. don't change colors if more than 2 players ready
-12. show who you're guessing
-
-score: 1 guess counts as X seconds
-
-- avoids the "takes all the time in the world"
+12. votekick
+13. score: 1 guess counts as X seconds - avoids the "takes all the time in the world"

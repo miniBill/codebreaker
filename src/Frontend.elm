@@ -839,13 +839,13 @@ title { inner } =
     in
     case inner of
         FrontendPlaying { gameName } ->
-            "Codebreaker! - " ++ rawGameName gameName
+            fromGame gameName
 
         FrontendPreparing { gameName } ->
-            "Codebreaker! - " ++ rawGameName gameName
+            fromGame gameName
 
         FrontendHomepage { gameName } ->
-            "Codebreaker! - " ++ rawGameName gameName
+            fromGame gameName
 
         FrontendAdminAuthenticating _ ->
             ""
