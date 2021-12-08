@@ -6,6 +6,7 @@ import Dict
 import Element.WithContext as Element exposing (alignBottom, alignRight, alignTop, centerX, centerY, el, fill, height, inFront, padding, paddingXY, px, spacing, text, width)
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
+import Element.WithContext.Extra as Extra
 import Element.WithContext.Font as Font
 import Element.WithContext.Input as Input exposing (username)
 import Lamdera
@@ -13,6 +14,7 @@ import List.Extra
 import Theme exposing (Attribute, Element)
 import Types exposing (..)
 import Url
+import Url.Parser
 
 
 app :
@@ -36,10 +38,24 @@ app =
         }
 
 
+urlParser : Url.Parser.Parser (String -> c) c
+urlParser =
+    Url.Parser.oneOf
+        [ Url.Parser.map (\s -> Maybe.withDefault s <| Url.percentDecode s) Url.Parser.string
+        , Url.Parser.map "" <| Url.Parser.top
+        ]
+
+
 init : Url.Url -> Nav.Key -> ( FrontendModel, Cmd FrontendMsg )
-init _ key =
+init url key =
     ( { key = key
-      , inner = FrontendConnecting
+      , inner =
+            url
+                |> Url.Parser.parse urlParser
+                |> Maybe.withDefault ""
+                |> String.replace "-" " "
+                |> GameName
+                |> FrontendConnecting
       , error = ""
       , colorblindMode = False
       }
@@ -68,7 +84,13 @@ update msg model =
         HomepageMsg homepage ->
             case model.inner of
                 FrontendHomepage _ ->
-                    ( { model | inner = FrontendHomepage homepage }, Cmd.none )
+                    let
+                        inner =
+                            FrontendHomepage homepage
+                    in
+                    ( { model | inner = inner }
+                    , Nav.replaceUrl model.key <| innerModelToUrl inner
+                    )
 
                 _ ->
                     ( model, Cmd.none )
@@ -104,10 +126,46 @@ updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd Frontend
 updateFromBackend msg model =
     case msg of
         TFReplaceModel inner ->
-            ( { model | inner = inner }, Cmd.none )
+            let
+                inner_ =
+                    case ( model.inner, inner ) of
+                        ( FrontendConnecting gameName, FrontendHomepage homepage ) ->
+                            FrontendHomepage { homepage | gameName = gameName }
+
+                        _ ->
+                            inner
+            in
+            ( { model | inner = inner_ }
+            , Nav.replaceUrl model.key <| innerModelToUrl inner_
+            )
 
         TFError error ->
             ( { model | error = error }, Cmd.none )
+
+
+innerModelToUrl : InnerFrontendModel -> String
+innerModelToUrl model =
+    let
+        gameNameToUrl gameName =
+            "/" ++ String.replace " " "-" (normalizeGameName gameName)
+    in
+    gameNameToUrl <| getGameName model
+
+
+getGameName : InnerFrontendModel -> GameName
+getGameName model =
+    case model of
+        FrontendConnecting gameName ->
+            gameName
+
+        FrontendHomepage { gameName } ->
+            gameName
+
+        FrontendPreparing { gameName } ->
+            gameName
+
+        FrontendPlaying { gameName } ->
+            gameName
 
 
 outerView : FrontendModel -> Browser.Document FrontendMsg
@@ -137,7 +195,7 @@ view model =
                 , padding 0
                 , inFront <|
                     case model.inner of
-                        FrontendConnecting ->
+                        FrontendConnecting _ ->
                             Element.none
 
                         FrontendHomepage _ ->
@@ -160,7 +218,7 @@ view model =
 
         body =
             case model.inner of
-                FrontendConnecting ->
+                FrontendConnecting _ ->
                     [ text "Connecting to server" ]
 
                 FrontendHomepage homepage ->
@@ -378,7 +436,7 @@ viewPreparing ({ shared } as preparingModel) =
         sharedInput =
             Theme.column [ padding 0, centerX ]
                 [ el [ width fill ] <|
-                    input
+                    input []
                         { validate = isInt
                         , label = "Length"
                         , text = shared.codeLength
@@ -386,7 +444,7 @@ viewPreparing ({ shared } as preparingModel) =
                         , placeholder = "4"
                         }
                 , el [ width fill ] <|
-                    input
+                    input []
                         { validate = isInt
                         , label = "Colors"
                         , text = shared.colors
@@ -412,6 +470,9 @@ viewPreparing ({ shared } as preparingModel) =
                                    )
                     )
                 |> Theme.column [ padding 0, centerX ]
+
+        sharedParsed =
+            preparingSharedParse shared
     in
     sharedInput
         :: (if me.ready then
@@ -422,16 +483,12 @@ viewPreparing ({ shared } as preparingModel) =
             else
                 [ el [ centerX ] <| text <| "Set your secret code, " ++ me.username
                 , Element.map SetCode <|
-                    codeInput
-                        { codeLength = Maybe.withDefault 4 <| String.toInt shared.codeLength
-                        , colors = Maybe.withDefault 8 <| String.toInt shared.colors
-                        }
-                        me.code
+                    codeInput (preparingSharedParse shared) me.code
                 ]
            )
         ++ [ if
                 List.all ((/=) -1) me.code
-                    && (List.length me.code == Maybe.withDefault 4 (String.toInt shared.codeLength))
+                    && (List.length me.code == sharedParsed.codeLength)
                     && not me.ready
              then
                 Theme.button [ centerX ] { onPress = Submit, label = text "Ready" }
@@ -533,14 +590,14 @@ viewHomepage error homepageModel =
     in
     [ text "Welcome to Codebreaker!"
     , Theme.row [ padding 0, width fill ]
-        [ input
+        [ input [ Extra.onEnter UpsertGame ]
             { validate = always True
             , label = "Game name"
             , text = rawGameName homepageModel.gameName
             , placeholder = "Game name"
             , onChange = \newGameName -> HomepageMsg { homepageModel | gameName = GameName newGameName }
             }
-        , input
+        , input [ Extra.onEnter UpsertGame ]
             { validate = always True
             , label = "User name"
             , text = homepageModel.username
@@ -559,22 +616,25 @@ viewHomepage error homepageModel =
 
 
 input :
-    { validate : String -> Bool
-    , label : String
-    , text : String
-    , placeholder : String
-    , onChange : String -> msg
-    }
+    List (Attribute msg)
+    ->
+        { validate : String -> Bool
+        , label : String
+        , text : String
+        , placeholder : String
+        , onChange : String -> msg
+        }
     -> Element msg
-input { validate, label, text, placeholder, onChange } =
+input attrs { validate, label, text, placeholder, onChange } =
     Input.text
         (if String.isEmpty text || validate text then
-            [ width fill ]
+            width fill :: attrs
 
          else
             [ Background.color <| Element.rgb 1 0.8 0.8
             , width fill
             ]
+                ++ attrs
         )
         { label = Input.labelAbove [] <| Element.text label
         , text = text

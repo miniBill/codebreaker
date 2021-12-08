@@ -64,11 +64,15 @@ update msg model =
             updateGame id
                 model
                 (\newGame ->
+                    let
+                        shared =
+                            preparingSharedParse newGame.shared
+                    in
                     ( BackendPlaying
                         { codes = Dict.map (\_ { code } -> code) newGame.players
                         , shared =
-                            { colors = Maybe.withDefault 4 <| String.toInt newGame.shared.colors
-                            , codeLength = Maybe.withDefault 8 <| String.toInt newGame.shared.codeLength
+                            { colors = shared.colors
+                            , codeLength = shared.codeLength
                             , startTime = now
                             , players =
                                 Dict.map

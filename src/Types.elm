@@ -17,7 +17,7 @@ type alias FrontendModel =
 
 
 type InnerFrontendModel
-    = FrontendConnecting
+    = FrontendConnecting GameName
     | FrontendHomepage HomepageModel
     | FrontendPreparing PreparingFrontendModel
     | FrontendPlaying PlayingFrontendModel
@@ -32,6 +32,13 @@ type alias HomepageModel =
 type alias PreparingSharedModel =
     { colors : String
     , codeLength : String
+    }
+
+
+preparingSharedParse : { a | codeLength : String, colors : String } -> { codeLength : Int, colors : Int }
+preparingSharedParse shared =
+    { codeLength = Maybe.withDefault 4 <| String.toInt shared.codeLength
+    , colors = Maybe.withDefault 8 <| String.toInt shared.colors
     }
 
 
@@ -98,9 +105,17 @@ type GameName
 
 normalizeGameName : GameName -> String
 normalizeGameName (GameName str) =
-    str
-        |> String.toLower
-        |> String.replace " " ""
+    let
+        cutSpaces s =
+            if String.contains "  " s then
+                cutSpaces (String.replace "  " " " s)
+
+            else
+                s
+    in
+    String.toLower str
+        |> cutSpaces
+        |> String.replace "-" " "
 
 
 rawGameName : GameName -> String
