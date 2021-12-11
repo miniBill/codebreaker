@@ -1,15 +1,16 @@
-1. Admin panel
+1. update spectators
 2. Fix empty guesses
-3. Responsiveness
-4. Fix url encoding/decoding for special chars
-5. AI
-6. update spectators
-7. mark the winner
-8. removing stale games
-9. Don't expose IDs to users
-10. Validate codes before starting game
-11. Leaderboard
-12. game name change flash
-13. don't change colors if more than 2 players ready
-14. votekick
-15. score: 1 guess counts as X seconds - avoids the "takes all the time in the world"
+3. Kick in admin panel
+4. Spectator count in admin panel
+5. Responsiveness
+6. Fix url encoding/decoding for special chars
+7. AI
+8. mark the winner
+9. removing stale games
+10. Don't expose IDs to users
+11. Validate codes before starting game
+12. Leaderboard
+13. game name change flash
+14. don't change colors if more than 2 players ready
+15. votekick
+16. score: 1 guess counts as X seconds - avoids the "takes all the time in the world"

@@ -104,8 +104,8 @@ type alias PlayingBackendModel =
 
 
 type alias AdminModel =
-    { preparing : List PreparingFrontendModel
-    , playing : List PlayingFrontendModel
+    { preparing : List ( Time.Posix, PreparingFrontendModel )
+    , playing : List ( Time.Posix, PlayingFrontendModel )
     }
 
 
@@ -197,7 +197,7 @@ type FrontendMsg
 
 
 type AdminMsg
-    = AdminMsgNop
+    = AdminDelete GameName
 
 
 type ToBackend
@@ -208,6 +208,7 @@ type ToBackend
     | TBHome
     | TBGameSettings PreparingSharedModel
     | TBAdminAuthenticate String
+    | TBAdmin AdminMsg
 
 
 type BackendMsg

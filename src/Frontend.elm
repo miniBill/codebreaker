@@ -316,7 +316,7 @@ view model =
                     Admin.authenticating authenticating
 
                 FrontendAdminAuthenticated authenticated ->
-                    Admin.authenticated authenticated
+                    List.map (Element.map AdminMsg) (Admin.authenticated authenticated)
 
                 FrontendHomepage homepage ->
                     viewHomepage model.error homepage ++ accessibility

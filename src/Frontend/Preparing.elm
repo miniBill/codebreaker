@@ -1,6 +1,5 @@
 module Frontend.Preparing exposing (view)
 
-import Browser exposing (UrlRequest(..))
 import Dict
 import Element.WithContext as Element exposing (Color, centerX, el, padding, text)
 import Element.WithContext.Border as Border

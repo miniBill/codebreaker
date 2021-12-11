@@ -2,7 +2,6 @@ module Backend exposing (app)
 
 import Dict exposing (Dict)
 import Env
-import Frontend.Admin as Admin
 import Lamdera exposing (ClientId, SessionId)
 import List.Extra
 import Set
@@ -53,7 +52,11 @@ update msg model =
               }
             , (case Dict.get id model.inGame of
                 Nothing ->
-                    FrontendHomepage defaultHomepageModel
+                    if Set.member id model.adminSessions then
+                        FrontendAdminAuthenticated (toAdminModel model.games)
+
+                    else
+                        FrontendHomepage defaultHomepageModel
 
                 Just gameName ->
                     case Dict.get (normalizeGameName gameName) model.games of
@@ -61,7 +64,7 @@ update msg model =
                             FrontendHomepage defaultHomepageModel
 
                         Just game ->
-                            toInnerFrontendModel id gameName game
+                            Tuple.second <| toInnerFrontendModel id gameName game
               )
                 |> TFReplaceModel
                 |> Lamdera.sendToFrontend id
@@ -85,23 +88,34 @@ update msg model =
                             )
                         )
                         model.connected
+                , adminSessions = Set.remove clientId model.adminSessions
               }
             , Cmd.none
             )
 
         Timed now id submsg ->
-            fromFrontendTimed now id submsg model
+            let
+                ( model_, cmd, shouldSendToAdmin ) =
+                    fromFrontendTimed now id submsg model
+            in
+            ( model_
+            , if shouldSendToAdmin then
+                Cmd.batch <| cmd :: List.map (sendToAdmin model_) (Set.toList model_.adminSessions)
+
+              else
+                cmd
+            )
 
 
-fromFrontendTimed : Time.Posix -> Id -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg )
+fromFrontendTimed : Time.Posix -> Id -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg, Bool )
 fromFrontendTimed now id msg model =
     case msg of
         TBUpsertGame data ->
             if String.isEmpty data.username then
-                ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty user name" )
+                ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty user name", False )
 
             else if String.isEmpty (normalizeGameName data.gameName) then
-                ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty game name" )
+                ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty game name", False )
 
             else
                 let
@@ -144,7 +158,8 @@ fromFrontendTimed now id msg model =
                     | inGame = Dict.insert id data.gameName model.inGame
                     , games = Dict.insert (normalizeGameName data.gameName) newGame model.games
                   }
-                , Lamdera.sendToFrontend id <| TFReplaceModel <| toInnerFrontendModel id data.gameName newGame
+                , Lamdera.sendToFrontend id <| TFReplaceModel <| Tuple.second <| toInnerFrontendModel id data.gameName newGame
+                , True
                 )
 
         TBCode code ->
@@ -332,6 +347,7 @@ fromFrontendTimed now id msg model =
         TBHome ->
             ( { model | inGame = Dict.remove id model.inGame }
             , Lamdera.sendToFrontend id <| TFReplaceModel (FrontendHomepage defaultHomepageModel)
+            , False
             )
 
         TBGameSettings shared ->
@@ -352,14 +368,44 @@ fromFrontendTimed now id msg model =
         TBAdminAuthenticate password ->
             if password == Env.adminPassword then
                 ( { model | adminSessions = Set.insert id model.adminSessions }
-                , Lamdera.sendToFrontend id <|
-                    TFReplaceModel <|
-                        FrontendAdminAuthenticated <|
-                            toAdminModel model.games
+                , sendToAdmin model id
+                , False
                 )
 
             else
-                ( model, Cmd.none )
+                ( model, Cmd.none, False )
+
+        TBAdmin (AdminDelete gameName) ->
+            let
+                normalized =
+                    normalizeGameName gameName
+
+                ids =
+                    model.inGame
+                        |> Dict.toList
+                        |> List.filter (\( _, name ) -> normalizeGameName name == normalized)
+                        |> List.map Tuple.first
+
+                cmds =
+                    ids
+                        |> List.map
+                            (\pid ->
+                                Lamdera.sendToFrontend pid (TFReplaceModel (FrontendHomepage defaultHomepageModel))
+                            )
+                        |> Cmd.batch
+            in
+            ( { model | games = Dict.remove normalized model.games }
+            , cmds
+            , True
+            )
+
+
+sendToAdmin : BackendModel -> Id -> Cmd msg
+sendToAdmin model id =
+    Lamdera.sendToFrontend id <|
+        TFReplaceModel <|
+            FrontendAdminAuthenticated <|
+                toAdminModel model.games
 
 
 toAdminModel : Dict String GameModel -> AdminModel
@@ -369,11 +415,11 @@ toAdminModel games =
         |> List.foldl
             (\( gameName, game ) acc ->
                 case toInnerFrontendModel "admin" (GameName gameName) game of
-                    FrontendPreparing preparing ->
-                        { acc | preparing = preparing :: acc.preparing }
+                    ( lastAction, FrontendPreparing preparing ) ->
+                        { acc | preparing = ( lastAction, preparing ) :: acc.preparing }
 
-                    FrontendPlaying playing ->
-                        { acc | playing = playing :: acc.playing }
+                    ( lastAction, FrontendPlaying playing ) ->
+                        { acc | playing = ( lastAction, playing ) :: acc.playing }
 
                     _ ->
                         acc
@@ -419,7 +465,7 @@ defaultHomepageModel =
     }
 
 
-toInnerFrontendModel : Id -> GameName -> GameModel -> InnerFrontendModel
+toInnerFrontendModel : Id -> GameName -> GameModel -> ( Time.Posix, InnerFrontendModel )
 toInnerFrontendModel id gameName game =
     case game of
         BackendPreparing preparing ->
@@ -432,7 +478,8 @@ toInnerFrontendModel id gameName game =
                             , ready = False
                             }
             in
-            FrontendPreparing
+            ( preparing.lastAction
+            , FrontendPreparing
                 { shared = preparing.shared
                 , gameName = gameName
                 , me = ( id, player )
@@ -445,14 +492,17 @@ toInnerFrontendModel id gameName game =
                         )
                         preparing.players
                 }
+            )
 
         BackendPlaying playing ->
-            FrontendPlaying
+            ( playing.lastAction
+            , FrontendPlaying
                 { shared = playing.shared
                 , me = id
                 , code = Dict.get id playing.codes
                 , gameName = gameName
                 }
+            )
 
 
 updateFromFrontend : SessionId -> ClientId -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg )
@@ -514,16 +564,16 @@ updateGame :
     -> BackendModel
     -> (PreparingBackendModel -> ( GameModel, Cmd msg ))
     -> (PlayingBackendModel -> ( GameModel, Cmd msg ))
-    -> ( BackendModel, Cmd msg )
+    -> ( BackendModel, Cmd msg, Bool )
 updateGame id model updatePreparing updatePlaying =
     case Dict.get id model.inGame of
         Nothing ->
-            ( model, Cmd.none )
+            ( model, Cmd.none, False )
 
         Just gameName ->
             case Dict.get (normalizeGameName gameName) model.games of
                 Nothing ->
-                    ( model, Cmd.none )
+                    ( model, Cmd.none, False )
 
                 Just game ->
                     let
@@ -541,6 +591,7 @@ updateGame id model updatePreparing updatePlaying =
 
                         send cid =
                             toInnerFrontendModel cid gameName newGame
+                                |> Tuple.second
                                 |> TFReplaceModel
                                 |> Lamdera.sendToFrontend cid
                     in
@@ -549,6 +600,7 @@ updateGame id model updatePreparing updatePlaying =
                         |> List.map send
                         |> (::) additionalCmd
                         |> Cmd.batch
+                    , True
                     )
 
 
