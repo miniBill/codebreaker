@@ -8,6 +8,7 @@ import Element.WithContext.Background as Background
 import Element.WithContext.Extra as Extra
 import Element.WithContext.Font as Font
 import Element.WithContext.Input as Input
+import Frontend.Admin as Admin
 import Frontend.Common exposing (gameNameToUrl)
 import Frontend.Playing as Playing
 import Frontend.Preparing as Preparing
@@ -283,11 +284,11 @@ view model =
                 FrontendConnecting _ ->
                     [ el [ centerX, centerY ] <| text "Connecting to server" ]
 
-                FrontendAdminAuthenticating _ ->
-                    [ text "TODO" ]
+                FrontendAdminAuthenticating authenticating ->
+                    Admin.authenticating authenticating
 
-                FrontendAdminAuthenticated _ ->
-                    [ text "TODO" ]
+                FrontendAdminAuthenticated authenticated ->
+                    Admin.authenticated authenticated
 
                 FrontendHomepage homepage ->
                     viewHomepage model.error homepage ++ accessibility
