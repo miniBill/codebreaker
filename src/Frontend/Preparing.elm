@@ -2,7 +2,7 @@ module Frontend.Preparing exposing (view)
 
 import Browser exposing (UrlRequest(..))
 import Dict
-import Element.WithContext as Element exposing (centerX, el, padding, text)
+import Element.WithContext as Element exposing (Color, centerX, el, padding, text)
 import Element.WithContext.Border as Border
 import Element.WithContext.Font as Font
 import Element.WithContext.Input as Input
@@ -10,11 +10,11 @@ import Frontend.Common exposing (codeInput, gameNameToUrl, viewCode, viewColor)
 import Html.Attributes
 import List.Extra
 import Theme exposing (Element)
-import Types exposing (..)
+import Types exposing (FrontendMsg(..), PreparingFrontendModel, PreparingSharedModel, preparingSharedParse)
 
 
 view : { a | rootUrl : String, colorblindMode : Bool } -> PreparingFrontendModel -> List (Element FrontendMsg)
-view { rootUrl, colorblindMode } ({ shared } as preparingModel) =
+view ({ rootUrl } as config) ({ shared } as preparingModel) =
     let
         me =
             Tuple.second preparingModel.me
@@ -37,119 +37,8 @@ view { rootUrl, colorblindMode } ({ shared } as preparingModel) =
                 , placeholder = "4"
                 }
             , text <| "Colors: " ++ String.fromInt shared.colors
-            , let
-                rowCount =
-                    4
-
-                rowSize =
-                    (List.length Theme.colors + (rowCount - 1)) // rowCount
-              in
-              Theme.colors
-                |> List.Extra.greedyGroupsOf rowSize
-                |> List.indexedMap
-                    (\rowIndex ->
-                        List.indexedMap
-                            (\columnIndex color ->
-                                let
-                                    index =
-                                        rowIndex * rowSize + columnIndex
-
-                                    active =
-                                        index < shared.colors
-
-                                    borderColor direction colored =
-                                        Element.htmlAttribute <|
-                                            Html.Attributes.style ("border-" ++ direction ++ "-color")
-                                                (if colored then
-                                                    "black"
-
-                                                 else
-                                                    "transparent"
-                                                )
-                                in
-                                Input.button
-                                    [ Theme.borderRounded
-                                    , Element.htmlAttribute <|
-                                        Html.Attributes.style "filter" <|
-                                            if active || not colorblindMode then
-                                                ""
-
-                                            else
-                                                "grayscale(100%)"
-                                    ]
-                                    { onPress = Just <| SetGameSettings { shared | colors = index + 1 }
-                                    , label =
-                                        { color
-                                            | backgroundColor =
-                                                if active then
-                                                    color.backgroundColor
-
-                                                else
-                                                    Theme.desaturate color.backgroundColor
-                                        }
-                                            |> viewColor
-                                    }
-                                    |> el
-                                        [ padding <| Theme.rythm // 2
-                                        , Border.widthEach
-                                            { left =
-                                                if columnIndex == 0 then
-                                                    1
-
-                                                else
-                                                    0
-                                            , top =
-                                                if rowIndex == 0 then
-                                                    1
-
-                                                else
-                                                    0
-                                            , right = 1
-                                            , bottom = 1
-                                            }
-                                        , borderColor "top" <|
-                                            if rowIndex == 0 then
-                                                active
-
-                                            else
-                                                False
-                                        , borderColor "left" <|
-                                            if columnIndex == 0 then
-                                                active
-
-                                            else
-                                                False
-                                        , borderColor "right" <|
-                                            if columnIndex == rowSize - 1 then
-                                                active
-
-                                            else
-                                                index == shared.colors - 1
-                                        , borderColor "bottom" <|
-                                            if rowIndex == rowCount - 1 then
-                                                active
-
-                                            else
-                                                active && index + rowSize >= shared.colors
-                                        ]
-                            )
-                            >> Element.row []
-                    )
-                |> Element.column [ centerX ]
+            , viewColorCount config shared
             ]
-
-        viewOthers =
-            preparingModel.players
-                |> Dict.toList
-                |> List.filter (\( id, _ ) -> id /= Tuple.first preparingModel.me)
-                |> List.map
-                    (\( _, { username, ready } ) ->
-                        if ready then
-                            text <| username ++ ": Ready"
-
-                        else
-                            text <| username ++ ": Preparing"
-                    )
 
         sharedParsed =
             preparingSharedParse shared
@@ -178,6 +67,125 @@ view { rootUrl, colorblindMode } ({ shared } as preparingModel) =
                         Element.none
                    , el [ Font.bold ] <| text "Other players"
                    ]
-                ++ viewOthers
+                ++ viewOthers preparingModel
     in
     [ Theme.column [ padding 0, centerX ] children ]
+
+
+viewColorCount : { a | colorblindMode : Bool } -> PreparingSharedModel -> Element FrontendMsg
+viewColorCount config shared =
+    let
+        rowCount =
+            4
+
+        rowSize =
+            (List.length Theme.colors + (rowCount - 1)) // rowCount
+
+        viewRow rowIndex colors =
+            colors
+                |> List.indexedMap (viewCell config shared rowSize rowIndex)
+                |> Element.row []
+    in
+    Theme.colors
+        |> List.Extra.greedyGroupsOf rowSize
+        |> List.indexedMap viewRow
+        |> Element.column [ centerX ]
+
+
+viewCell :
+    { a | colorblindMode : Bool }
+    -> PreparingSharedModel
+    -> Int
+    -> Int
+    -> Int
+    -> { backgroundColor : Color, symbol : String }
+    -> Element FrontendMsg
+viewCell { colorblindMode } shared rowSize rowIndex columnIndex color =
+    let
+        index =
+            rowIndex * rowSize + columnIndex
+
+        active =
+            index < shared.colors
+
+        borders =
+            { top = rowIndex == 0
+            , left = columnIndex == 0
+            , right = columnIndex == rowSize - 1 || index == shared.colors - 1
+            , bottom = index + rowSize >= shared.colors
+            }
+
+        borderIfActiveAnd colored direction =
+            Element.htmlAttribute <|
+                Html.Attributes.style ("border-" ++ direction ++ "-color")
+                    (if colored && active then
+                        "black"
+
+                     else
+                        "transparent"
+                    )
+
+        borderWidths =
+            Border.widthEach
+                { left = boolToInt borders.left
+                , top = boolToInt borders.top
+                , right = 1
+                , bottom = 1
+                }
+
+        label =
+            { color
+                | backgroundColor =
+                    if active then
+                        color.backgroundColor
+
+                    else
+                        Theme.desaturate color.backgroundColor
+            }
+                |> viewColor
+    in
+    Input.button
+        [ Theme.borderRounded
+        , Element.htmlAttribute <|
+            Html.Attributes.style "filter" <|
+                if active || not colorblindMode then
+                    ""
+
+                else
+                    "grayscale(100%)"
+        ]
+        { onPress = Just <| SetGameSettings { shared | colors = index + 1 }
+        , label = label
+        }
+        |> el
+            [ padding <| Theme.rythm // 2
+            , borderWidths
+            , borderIfActiveAnd borders.top "top"
+            , borderIfActiveAnd borders.left "left"
+            , borderIfActiveAnd borders.right "right"
+            , borderIfActiveAnd borders.bottom "bottom"
+            ]
+
+
+boolToInt : Bool -> Int
+boolToInt b =
+    if b then
+        1
+
+    else
+        0
+
+
+viewOthers : PreparingFrontendModel -> List (Element msg)
+viewOthers preparingModel =
+    preparingModel.players
+        |> Dict.toList
+        |> List.filter (\( id, _ ) -> id /= Tuple.first preparingModel.me)
+        |> List.map
+            (\( _, { username, ready } ) ->
+                if ready then
+                    text <| username ++ ": Ready"
+
+                else
+                    text <| username ++ ": Preparing"
+            )
