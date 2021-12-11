@@ -1,4 +1,31 @@
-module Types exposing (..)
+module Types exposing
+    ( AdminMsg(..)
+    , Answer
+    , BackendGameModel(..)
+    , BackendModel
+    , BackendMsg(..)
+    , BackendPlayingModel
+    , BackendPreparingModel
+    , Code
+    , Color
+    , Context
+    , FrontendAdminModel
+    , FrontendHomepageModel
+    , FrontendModel
+    , FrontendMsg(..)
+    , FrontendPlayingModel
+    , FrontendPreparingModel
+    , InnerFrontendModel(..)
+    , PlayerModel(..)
+    , PlayerMoves
+    , PreparingUser
+    , SharedPlayingModel
+    , SharedPlayingPlayerModel
+    , SharedPreparingModel
+    , ToBackend(..)
+    , ToFrontend(..)
+    , sharedPreparingParse
+    )
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
@@ -6,6 +33,9 @@ import Dict exposing (Dict)
 import Lamdera exposing (ClientId, SessionId)
 import Set exposing (Set)
 import Time
+import Types.GameDict as GameDict exposing (GameDict)
+import Types.GameName as GameName exposing (GameName)
+import Types.Id as Id exposing (Id)
 import Url exposing (Url)
 
 
@@ -29,13 +59,14 @@ type InnerFrontendModel
 
 type alias FrontendHomepageModel =
     { username : String
-    , gameName : GameName
+    , gameName : String
     }
 
 
 type alias SharedPreparingModel =
     { colors : Int
     , codeLength : String
+    , canonicalName : String
     }
 
 
@@ -46,15 +77,11 @@ sharedPreparingParse shared =
     }
 
 
-type alias Id =
-    String
-
-
 type alias FrontendPreparingModel =
     { shared : SharedPreparingModel
     , gameName : GameName
     , me : ( Id, PreparingUser )
-    , players : Dict Id { username : String, ready : Bool }
+    , players : Dict SessionId { username : String, ready : Bool }
     }
 
 
@@ -77,6 +104,7 @@ type alias SharedPlayingModel =
     , codeLength : Int
     , startTime : Time.Posix
     , players : Dict ClientId SharedPlayingPlayerModel
+    , canonicalName : String
     }
 
 
@@ -114,35 +142,11 @@ type alias Context =
 
 
 type alias BackendModel =
-    { inGame : Dict Id GameName
+    { inGame : GameDict
     , games : Dict String BackendGameModel
     , connected : Dict SessionId (Set ClientId)
     , adminSessions : Set ClientId
     }
-
-
-type GameName
-    = GameName String
-
-
-normalizeGameName : GameName -> String
-normalizeGameName (GameName str) =
-    let
-        cutSpaces s =
-            if String.contains "  " s then
-                cutSpaces (String.replace "  " " " s)
-
-            else
-                s
-    in
-    String.toLower str
-        |> cutSpaces
-        |> String.replace "-" " "
-
-
-rawGameName : GameName -> String
-rawGameName (GameName str) =
-    str
 
 
 type BackendGameModel

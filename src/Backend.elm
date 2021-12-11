@@ -8,6 +8,8 @@ import Set
 import Task
 import Time
 import Types exposing (..)
+import Types.GameDict as GameDict
+import Types.GameName as GameName
 
 
 app :
@@ -27,7 +29,7 @@ app =
 
 init : ( BackendModel, Cmd BackendMsg )
 init =
-    ( { inGame = Dict.empty
+    ( { inGame = GameDict.empty
       , games = Dict.empty
       , connected = Dict.empty
       , adminSessions = Set.empty
@@ -50,7 +52,7 @@ update msg model =
                         (Maybe.withDefault Set.empty >> Set.insert clientId >> Just)
                         model.connected
               }
-            , (case Dict.get id model.inGame of
+            , (case GameDict.getGameFor id model.inGame of
                 Nothing ->
                     if Set.member id model.adminSessions then
                         FrontendAdminAuthenticated (toAdminModel model.games)
@@ -59,7 +61,7 @@ update msg model =
                         FrontendHomepage defaultHomepageModel
 
                 Just gameName ->
-                    case Dict.get (normalizeGameName gameName) model.games of
+                    case Dict.get (GameName.toString gameName) model.games of
                         Nothing ->
                             FrontendHomepage defaultHomepageModel
 
@@ -114,13 +116,13 @@ fromFrontendTimed now id msg model =
             if String.isEmpty data.username then
                 ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty user name", False )
 
-            else if String.isEmpty (normalizeGameName data.gameName) then
+            else if String.isEmpty data.gameName then
                 ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty game name", False )
 
             else
                 let
                     newGame =
-                        case Dict.get (normalizeGameName data.gameName) model.games of
+                        case Dict.get (GameName.fromString data.gameName) model.games of
                             Just game ->
                                 case game of
                                     BackendPreparing preparing ->
