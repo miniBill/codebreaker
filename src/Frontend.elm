@@ -351,7 +351,7 @@ view model =
         (header :: body)
 
 
-viewHomepage : String -> HomepageModel -> List (Element FrontendMsg)
+viewHomepage : String -> FrontendHomepageModel -> List (Element FrontendMsg)
 viewHomepage error homepageModel =
     let
         errorView =

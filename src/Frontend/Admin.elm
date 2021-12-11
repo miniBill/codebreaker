@@ -10,10 +10,10 @@ import Element.WithContext.Input as Input
 import Lamdera
 import Theme exposing (Attribute, Element)
 import Time
-import Types exposing (AdminModel, AdminMsg(..), FrontendMsg(..), GameName, PlayerModel(..), PlayingFrontendModel, PreparingFrontendModel, ToBackend(..))
+import Types exposing (AdminMsg(..), FrontendAdminModel, FrontendMsg(..), FrontendPlayingModel, FrontendPreparingModel, GameName, PlayerModel(..), ToBackend(..))
 
 
-authenticated : AdminModel -> List (Element AdminMsg)
+authenticated : FrontendAdminModel -> List (Element AdminMsg)
 authenticated { preparing, playing } =
     [ section "Preparing"
     , viewPreparing preparing
@@ -22,7 +22,7 @@ authenticated { preparing, playing } =
     ]
 
 
-viewPreparing : List ( Time.Posix, PreparingFrontendModel ) -> Element AdminMsg
+viewPreparing : List ( Time.Posix, FrontendPreparingModel ) -> Element AdminMsg
 viewPreparing preparing =
     table [ width fill ]
         { data = preparing
@@ -37,7 +37,7 @@ viewPreparing preparing =
         }
 
 
-viewPlaying : List ( Time.Posix, PlayingFrontendModel ) -> Element AdminMsg
+viewPlaying : List ( Time.Posix, FrontendPlayingModel ) -> Element AdminMsg
 viewPlaying playing =
     table [ width fill ]
         { data = playing
@@ -114,7 +114,7 @@ lengthColumnString =
         }
 
 
-playersColumnPreparing : Column PreparingFrontendModel AdminMsg
+playersColumnPreparing : Column FrontendPreparingModel AdminMsg
 playersColumnPreparing =
     { header = "Players"
     , view =
@@ -135,7 +135,7 @@ playersColumnPreparing =
     }
 
 
-playersColumnPlaying : Column PlayingFrontendModel AdminMsg
+playersColumnPlaying : Column FrontendPlayingModel AdminMsg
 playersColumnPlaying =
     { header = "Players"
     , view =
@@ -241,6 +241,6 @@ authenticating password =
     ]
 
 
-update : AdminMsg -> AdminModel -> ( AdminModel, Cmd msg )
+update : AdminMsg -> FrontendAdminModel -> ( FrontendAdminModel, Cmd msg )
 update msg model =
     ( model, Lamdera.sendToBackend <| TBAdmin msg )

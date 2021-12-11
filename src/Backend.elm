@@ -236,7 +236,7 @@ fromFrontendTimed now id msg model =
                     if Dict.size newGame.players >= 2 && List.all .ready (Dict.values newGame.players) then
                         let
                             shared =
-                                preparingSharedParse newGame.shared
+                                sharedPreparingParse newGame.shared
                         in
                         ( { codes = Dict.map (\_ { code } -> code) newGame.players
                           , shared =
@@ -408,7 +408,7 @@ sendToAdmin model id =
                 toAdminModel model.games
 
 
-toAdminModel : Dict String GameModel -> AdminModel
+toAdminModel : Dict String BackendGameModel -> FrontendAdminModel
 toAdminModel games =
     games
         |> Dict.toList
@@ -458,14 +458,14 @@ toId sessionId _ =
     sessionId
 
 
-defaultHomepageModel : HomepageModel
+defaultHomepageModel : FrontendHomepageModel
 defaultHomepageModel =
     { gameName = GameName ""
     , username = ""
     }
 
 
-toInnerFrontendModel : Id -> GameName -> GameModel -> ( Time.Posix, InnerFrontendModel )
+toInnerFrontendModel : Id -> GameName -> BackendGameModel -> ( Time.Posix, InnerFrontendModel )
 toInnerFrontendModel id gameName game =
     case game of
         BackendPreparing preparing ->
@@ -562,8 +562,8 @@ getAnswer code guess =
 updateGame :
     Id
     -> BackendModel
-    -> (PreparingBackendModel -> ( GameModel, Cmd msg ))
-    -> (PlayingBackendModel -> ( GameModel, Cmd msg ))
+    -> (BackendPreparingModel -> ( BackendGameModel, Cmd msg ))
+    -> (BackendPlayingModel -> ( BackendGameModel, Cmd msg ))
     -> ( BackendModel, Cmd msg, Bool )
 updateGame id model updatePreparing updatePlaying =
     case Dict.get id model.inGame of

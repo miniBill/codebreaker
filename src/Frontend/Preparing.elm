@@ -9,10 +9,10 @@ import Frontend.Common exposing (codeInput, gameNameToUrl, viewCode, viewColor)
 import Html.Attributes
 import List.Extra
 import Theme exposing (Element)
-import Types exposing (FrontendMsg(..), PreparingFrontendModel, PreparingSharedModel, preparingSharedParse)
+import Types exposing (FrontendMsg(..), FrontendPreparingModel, SharedPreparingModel, sharedPreparingParse)
 
 
-view : { a | rootUrl : String, colorblindMode : Bool } -> PreparingFrontendModel -> List (Element FrontendMsg)
+view : { a | rootUrl : String, colorblindMode : Bool } -> FrontendPreparingModel -> List (Element FrontendMsg)
 view ({ rootUrl } as config) ({ shared } as preparingModel) =
     let
         me =
@@ -40,7 +40,7 @@ view ({ rootUrl } as config) ({ shared } as preparingModel) =
             ]
 
         sharedParsed =
-            preparingSharedParse shared
+            sharedPreparingParse shared
 
         children =
             sharedInput
@@ -52,7 +52,7 @@ view ({ rootUrl } as config) ({ shared } as preparingModel) =
                     else
                         [ text <| "Set your secret code, " ++ me.username
                         , Element.map SetCode <|
-                            codeInput (preparingSharedParse shared) me.code
+                            codeInput (sharedPreparingParse shared) me.code
                         ]
                    )
                 ++ [ if
@@ -71,7 +71,7 @@ view ({ rootUrl } as config) ({ shared } as preparingModel) =
     [ Theme.column [ padding 0, centerX ] children ]
 
 
-viewColorCount : { a | colorblindMode : Bool } -> PreparingSharedModel -> Element FrontendMsg
+viewColorCount : { a | colorblindMode : Bool } -> SharedPreparingModel -> Element FrontendMsg
 viewColorCount config shared =
     let
         rowCount =
@@ -93,7 +93,7 @@ viewColorCount config shared =
 
 viewCell :
     { a | colorblindMode : Bool }
-    -> PreparingSharedModel
+    -> SharedPreparingModel
     -> Int
     -> Int
     -> Int
@@ -175,7 +175,7 @@ boolToInt b =
         0
 
 
-viewOthers : PreparingFrontendModel -> List (Element msg)
+viewOthers : FrontendPreparingModel -> List (Element msg)
 viewOthers preparingModel =
     preparingModel.players
         |> Dict.toList

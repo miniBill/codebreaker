@@ -20,27 +20,27 @@ type alias FrontendModel =
 
 type InnerFrontendModel
     = FrontendConnecting GameName
-    | FrontendHomepage HomepageModel
-    | FrontendPreparing PreparingFrontendModel
-    | FrontendPlaying PlayingFrontendModel
+    | FrontendHomepage FrontendHomepageModel
+    | FrontendPreparing FrontendPreparingModel
+    | FrontendPlaying FrontendPlayingModel
     | FrontendAdminAuthenticating String
-    | FrontendAdminAuthenticated AdminModel
+    | FrontendAdminAuthenticated FrontendAdminModel
 
 
-type alias HomepageModel =
+type alias FrontendHomepageModel =
     { username : String
     , gameName : GameName
     }
 
 
-type alias PreparingSharedModel =
+type alias SharedPreparingModel =
     { colors : Int
     , codeLength : String
     }
 
 
-preparingSharedParse : { a | codeLength : String, colors : Int } -> { codeLength : Int, colors : Int }
-preparingSharedParse shared =
+sharedPreparingParse : { a | codeLength : String, colors : Int } -> { codeLength : Int, colors : Int }
+sharedPreparingParse shared =
     { codeLength = Maybe.withDefault 4 <| String.toInt shared.codeLength
     , colors = shared.colors
     }
@@ -50,8 +50,8 @@ type alias Id =
     String
 
 
-type alias PreparingFrontendModel =
-    { shared : PreparingSharedModel
+type alias FrontendPreparingModel =
+    { shared : SharedPreparingModel
     , gameName : GameName
     , me : ( Id, PreparingUser )
     , players : Dict Id { username : String, ready : Bool }
@@ -65,22 +65,22 @@ type alias PreparingUser =
     }
 
 
-type alias PreparingBackendModel =
-    { shared : PreparingSharedModel
+type alias BackendPreparingModel =
+    { shared : SharedPreparingModel
     , players : Dict Id PreparingUser
     , lastAction : Time.Posix
     }
 
 
-type alias PlayingSharedModel =
+type alias SharedPlayingModel =
     { colors : Int
     , codeLength : Int
     , startTime : Time.Posix
-    , players : Dict ClientId PlayingPlayerModel
+    , players : Dict ClientId SharedPlayingPlayerModel
     }
 
 
-type alias PlayingPlayerModel =
+type alias SharedPlayingPlayerModel =
     { username : String
     , history : PlayerMoves
     , model : PlayerModel
@@ -88,24 +88,24 @@ type alias PlayingPlayerModel =
     }
 
 
-type alias PlayingFrontendModel =
-    { shared : PlayingSharedModel
+type alias FrontendPlayingModel =
+    { shared : SharedPlayingModel
     , gameName : GameName
     , code : Maybe Code
     , me : ClientId
     }
 
 
-type alias PlayingBackendModel =
-    { shared : PlayingSharedModel
+type alias BackendPlayingModel =
+    { shared : SharedPlayingModel
     , codes : Dict ClientId Code
     , lastAction : Time.Posix
     }
 
 
-type alias AdminModel =
-    { preparing : List ( Time.Posix, PreparingFrontendModel )
-    , playing : List ( Time.Posix, PlayingFrontendModel )
+type alias FrontendAdminModel =
+    { preparing : List ( Time.Posix, FrontendPreparingModel )
+    , playing : List ( Time.Posix, FrontendPlayingModel )
     }
 
 
@@ -115,7 +115,7 @@ type alias Context =
 
 type alias BackendModel =
     { inGame : Dict Id GameName
-    , games : Dict String GameModel
+    , games : Dict String BackendGameModel
     , connected : Dict SessionId (Set ClientId)
     , adminSessions : Set ClientId
     }
@@ -145,9 +145,9 @@ rawGameName (GameName str) =
     str
 
 
-type GameModel
-    = BackendPreparing PreparingBackendModel
-    | BackendPlaying PlayingBackendModel
+type BackendGameModel
+    = BackendPreparing BackendPreparingModel
+    | BackendPlaying BackendPlayingModel
 
 
 type alias Code =
@@ -182,9 +182,9 @@ type alias Answer =
 type FrontendMsg
     = UrlClicked UrlRequest
     | UrlChanged Url
-    | HomepageMsg HomepageModel
+    | HomepageMsg FrontendHomepageModel
     | UpsertGame
-    | SetGameSettings PreparingSharedModel
+    | SetGameSettings SharedPreparingModel
     | SetCode Code
     | Submit
     | ColorblindMode Bool
@@ -201,12 +201,12 @@ type AdminMsg
 
 
 type ToBackend
-    = TBUpsertGame HomepageModel
+    = TBUpsertGame FrontendHomepageModel
     | TBCode Code
     | TBSubmit
     | TBNewGame
     | TBHome
-    | TBGameSettings PreparingSharedModel
+    | TBGameSettings SharedPreparingModel
     | TBAdminAuthenticate String
     | TBAdmin AdminMsg
 

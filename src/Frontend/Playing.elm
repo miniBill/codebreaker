@@ -12,6 +12,7 @@ import Time
 import Types exposing (..)
 
 
+view : FrontendPlayingModel -> List (Element FrontendMsg)
 view playingModel =
     let
         meViews =
@@ -56,7 +57,7 @@ view playingModel =
     ]
 
 
-viewMePlaying : PlayingSharedModel -> PlayingPlayerModel -> List (Element FrontendMsg)
+viewMePlaying : SharedPlayingModel -> SharedPlayingPlayerModel -> List (Element FrontendMsg)
 viewMePlaying ({ startTime, codeLength } as shared) player =
     let
         sharedView =
@@ -105,7 +106,7 @@ viewMePlaying ({ startTime, codeLength } as shared) player =
             ]
 
 
-viewOther : PlayingSharedModel -> PlayingPlayerModel -> Element msg
+viewOther : SharedPlayingModel -> SharedPlayingPlayerModel -> Element msg
 viewOther ({ startTime, codeLength } as shared) player =
     viewPlayingPlayer shared
         player
@@ -122,7 +123,7 @@ viewOther ({ startTime, codeLength } as shared) player =
         )
 
 
-viewPlayingPlayer : PlayingSharedModel -> PlayingPlayerModel -> List (Element msg) -> Element msg
+viewPlayingPlayer : SharedPlayingModel -> SharedPlayingPlayerModel -> List (Element msg) -> Element msg
 viewPlayingPlayer shared { username, history, model, opponentId } rest =
     let
         opponent =
