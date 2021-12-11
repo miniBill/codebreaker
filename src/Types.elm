@@ -191,6 +191,13 @@ type FrontendMsg
     | NewGame
     | Home
     | FrontendNoop
+    | AdminPassword String
+    | AdminLogin
+    | AdminMsg AdminMsg
+
+
+type AdminMsg
+    = AdminMsgNop
 
 
 type ToBackend

@@ -155,6 +155,34 @@ update msg model =
         FrontendNoop ->
             ( model, Cmd.none )
 
+        AdminPassword password ->
+            case model.inner of
+                FrontendAdminAuthenticating _ ->
+                    ( { model | inner = FrontendAdminAuthenticating password }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        AdminLogin ->
+            case model.inner of
+                FrontendAdminAuthenticating password ->
+                    ( model, Lamdera.sendToBackend <| TBAdminAuthenticate password )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        AdminMsg adminMsg ->
+            case model.inner of
+                FrontendAdminAuthenticated inner ->
+                    let
+                        ( inner_, cmd ) =
+                            Admin.update adminMsg inner
+                    in
+                    ( { model | inner = FrontendAdminAuthenticated inner_ }, cmd )
+
+                _ ->
+                    ( model, Cmd.none )
+
 
 updateFromBackend : ToFrontend -> FrontendModel -> ( FrontendModel, Cmd FrontendMsg )
 updateFromBackend msg model =

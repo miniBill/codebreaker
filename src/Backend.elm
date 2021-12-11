@@ -1,6 +1,8 @@
 module Backend exposing (app)
 
 import Dict exposing (Dict)
+import Env
+import Frontend.Admin as Admin
 import Lamdera exposing (ClientId, SessionId)
 import List.Extra
 import Set
@@ -347,8 +349,38 @@ fromFrontendTimed now id msg model =
                 )
                 (\playing -> ( BackendPlaying playing, Cmd.none ))
 
-        TBAdminAuthenticate _ ->
-            ( model, Cmd.none )
+        TBAdminAuthenticate password ->
+            if password == Env.adminPassword then
+                ( { model | adminSessions = Set.insert id model.adminSessions }
+                , Lamdera.sendToFrontend id <|
+                    TFReplaceModel <|
+                        FrontendAdminAuthenticated <|
+                            toAdminModel model.games
+                )
+
+            else
+                ( model, Cmd.none )
+
+
+toAdminModel : Dict String GameModel -> AdminModel
+toAdminModel games =
+    games
+        |> Dict.toList
+        |> List.foldl
+            (\( gameName, game ) acc ->
+                case toInnerFrontendModel "admin" (GameName gameName) game of
+                    FrontendPreparing preparing ->
+                        { acc | preparing = preparing :: acc.preparing }
+
+                    FrontendPlaying playing ->
+                        { acc | playing = playing :: acc.playing }
+
+                    _ ->
+                        acc
+            )
+            { preparing = []
+            , playing = []
+            }
 
 
 getOpponent : Id -> Dict Id a -> Id
