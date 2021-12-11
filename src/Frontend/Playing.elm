@@ -1,4 +1,4 @@
-module Frontend.Game exposing (viewPlaying)
+module Frontend.Playing exposing (view)
 
 import Dict
 import Element.WithContext as Element exposing (alignBottom, alignRight, alignTop, centerX, el, fill, height, padding, paragraph, px, spacing, text, width)
@@ -12,8 +12,7 @@ import Time
 import Types exposing (..)
 
 
-viewPlaying : PlayingFrontendModel -> List (Element FrontendMsg)
-viewPlaying playingModel =
+view playingModel =
     let
         meViews =
             case Dict.get playingModel.me playingModel.shared.players of

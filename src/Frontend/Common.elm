@@ -1,4 +1,4 @@
-module Frontend.Common exposing (codeInput, padCode, viewCode, viewColor)
+module Frontend.Common exposing (codeInput, gameNameToUrl, padCode, viewCode, viewColor)
 
 import Element.WithContext as Element exposing (centerX, centerY, el, height, padding, paddingXY, px, text, width)
 import Element.WithContext.Background as Background
@@ -7,6 +7,7 @@ import Element.WithContext.Input as Input
 import List.Extra
 import Theme exposing (Attribute, Element)
 import Types exposing (..)
+import Url.Builder
 
 
 viewCode : List (Attribute msg) -> List Int -> Element msg
@@ -28,22 +29,21 @@ viewCode attrs =
 
 viewColor : { backgroundColor : Element.Color, symbol : String } -> Element msg
 viewColor { backgroundColor, symbol } =
-    Element.with .colorblindMode <|
-        \colorblindMode ->
-            if colorblindMode then
-                el [ centerX, centerY, Theme.fontSizes.big ] <|
-                    text symbol
+    Element.with .colorblindMode <| \colorblindMode ->
+    if colorblindMode then
+        el [ centerX, centerY, Theme.fontSizes.big ] <|
+            text symbol
 
-            else
-                el
-                    [ width <| px 20
-                    , height <| px 20
-                    , Background.color backgroundColor
-                    , Border.rounded 20
-                    , Border.width 1
-                    , Border.color <| Element.rgb 0 0 0
-                    ]
-                    Element.none
+    else
+        el
+            [ width <| px 20
+            , height <| px 20
+            , Background.color backgroundColor
+            , Border.rounded 20
+            , Border.width 1
+            , Border.color <| Element.rgb 0 0 0
+            ]
+            Element.none
 
 
 codeInput : { a | codeLength : Int, colors : Int } -> Code -> Element Code
@@ -83,3 +83,10 @@ codeInput { codeLength, colors } code =
 padCode : Int -> Code -> Code
 padCode codeLength code =
     code ++ List.repeat (codeLength - List.length code) -1
+
+
+gameNameToUrl : GameName -> String
+gameNameToUrl gameName =
+    Url.Builder.absolute
+        [ String.replace " " "-" (normalizeGameName gameName) ]
+        []
