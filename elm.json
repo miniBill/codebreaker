@@ -16,7 +16,8 @@
             "elm-community/list-extra": "8.5.1",
             "lamdera/codecs": "1.0.0",
             "lamdera/core": "1.0.0",
-            "miniBill/elm-ui-with-context": "1.1.0"
+            "miniBill/elm-ui-with-context": "1.1.0",
+            "ryannhg/date-format": "2.3.0"
         },
         "indirect": {
             "elm/bytes": "1.0.8",

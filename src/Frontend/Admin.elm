@@ -1,7 +1,8 @@
 module Frontend.Admin exposing (authenticated, authenticating, update)
 
+import DateFormat
 import Dict
-import Element.WithContext exposing (Length, centerY, el, fill, padding, shrink, table, text, width)
+import Element.WithContext as Element exposing (Length, centerY, el, fill, padding, shrink, table, text, width)
 import Element.WithContext.Border as Border
 import Element.WithContext.Extra exposing (onEnter)
 import Element.WithContext.Font as Font
@@ -23,10 +24,11 @@ authenticated { preparing, playing } =
 
 viewPreparing : List ( Time.Posix, PreparingFrontendModel ) -> Element AdminMsg
 viewPreparing preparing =
-    myTable [ width fill ]
+    table [ width fill ]
         { data = preparing
         , columns =
-            [ gameNameColumn
+            [ lastUpdateColumn
+            , gameNameColumn
             , colorsColumn
             , lengthColumnString
             , playersColumnPreparing
@@ -37,10 +39,11 @@ viewPreparing preparing =
 
 viewPlaying : List ( Time.Posix, PlayingFrontendModel ) -> Element AdminMsg
 viewPlaying playing =
-    myTable [ width fill ]
+    table [ width fill ]
         { data = playing
         , columns =
-            [ gameNameColumn
+            [ lastUpdateColumn
+            , gameNameColumn
             , colorsColumn
             , lengthColumnInt
             , playersColumnPlaying
@@ -53,6 +56,29 @@ type alias Column record msg =
     { header : String
     , view : ( Time.Posix, record ) -> Element msg
     , width : Length
+    }
+
+
+lastUpdateColumn : Column a msg
+lastUpdateColumn =
+    let
+        tokens =
+            [ DateFormat.hourMilitaryFixed
+            , DateFormat.text ":"
+            , DateFormat.minuteFixed
+            , DateFormat.text ":"
+            , DateFormat.secondFixed
+            , DateFormat.text " d"
+            , DateFormat.dayOfYearFixed
+            ]
+    in
+    { header = "Last update (UTC)"
+    , view =
+        \( lastUpdate, _ ) ->
+            lastUpdate
+                |> DateFormat.format tokens Time.utc
+                |> text
+    , width = shrink
     }
 
 
@@ -109,6 +135,28 @@ playersColumnPreparing =
     }
 
 
+playersColumnPlaying : Column PlayingFrontendModel AdminMsg
+playersColumnPlaying =
+    { header = "Players"
+    , view =
+        \( _, { shared } ) ->
+            shared.players
+                |> Dict.values
+                |> List.map
+                    (\{ username, model } ->
+                        case model of
+                            Won _ ->
+                                username ++ " (W)"
+
+                            Guessing _ ->
+                                username ++ " (G)"
+                    )
+                |> String.join ", "
+                |> text
+    , width = fill
+    }
+
+
 deleteColumn : Column { a | gameName : GameName } AdminMsg
 deleteColumn =
     { header = "Commands"
@@ -122,28 +170,6 @@ deleteColumn =
     }
 
 
-playersColumnPlaying : Column PlayingFrontendModel AdminMsg
-playersColumnPlaying =
-    { header = "Players"
-    , view =
-        \( _, { shared } ) ->
-            shared.players
-                |> Dict.values
-                |> List.map
-                    (\{ username, model } ->
-                        case model of
-                            Won _ ->
-                                username ++ "(W)"
-
-                            Guessing _ ->
-                                username ++ "(G)"
-                    )
-                |> String.join ", "
-                |> text
-    , width = fill
-    }
-
-
 simpleColumn : { header : String, view : record -> String } -> Column record msg
 simpleColumn col =
     { header = col.header
@@ -152,19 +178,19 @@ simpleColumn col =
     }
 
 
-myTable :
+table :
     List (Attribute msg)
     ->
-        { data : List record
+        { data : List ( Time.Posix, record )
         , columns :
             List
                 { header : String
-                , view : record -> Element msg
+                , view : ( Time.Posix, record ) -> Element msg
                 , width : Length
                 }
         }
     -> Element msg
-myTable attrs { data, columns } =
+table attrs { data, columns } =
     let
         mapColumn { header, view, width } =
             { header =
@@ -182,8 +208,8 @@ myTable attrs { data, columns } =
             , width = width
             }
     in
-    table attrs
-        { data = data
+    Element.table attrs
+        { data = List.sortBy (Tuple.first >> Time.posixToMillis) data
         , columns = List.map mapColumn columns
         }
 
