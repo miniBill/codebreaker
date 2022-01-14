@@ -1,5 +1,6 @@
 module Backend exposing (app)
 
+import Any.Dict
 import Dict exposing (Dict)
 import Env
 import Lamdera exposing (ClientId, SessionId)
@@ -9,7 +10,8 @@ import Task
 import Time
 import Types exposing (..)
 import Types.GameDict as GameDict
-import Types.GameName as GameName
+import Types.GameName as GameName exposing (GameName)
+import Types.Id as Id exposing (Id)
 
 
 app :
@@ -30,7 +32,7 @@ app =
 init : ( BackendModel, Cmd BackendMsg )
 init =
     ( { inGame = GameDict.empty
-      , games = Dict.empty
+      , games = GameName.dict.empty
       , connected = Dict.empty
       , adminSessions = Set.empty
       }
@@ -54,14 +56,14 @@ update msg model =
               }
             , (case GameDict.getGameFor id model.inGame of
                 Nothing ->
-                    if Set.member id model.adminSessions then
+                    if Set.member clientId model.adminSessions then
                         FrontendAdminAuthenticated (toAdminModel model.games)
 
                     else
                         FrontendHomepage defaultHomepageModel
 
                 Just gameName ->
-                    case Dict.get (GameName.toString gameName) model.games of
+                    case GameName.dict.get gameName model.games of
                         Nothing ->
                             FrontendHomepage defaultHomepageModel
 
@@ -69,7 +71,7 @@ update msg model =
                             Tuple.second <| toInnerFrontendModel id gameName game
               )
                 |> TFReplaceModel
-                |> Lamdera.sendToFrontend id
+                |> sendToFrontend id
             )
 
         ClientDisconnected sessionId clientId ->
@@ -109,27 +111,35 @@ update msg model =
             )
 
 
+sendToFrontend : Id -> ToFrontend -> Cmd BackendMsg
+sendToFrontend id =
+    Lamdera.sendToFrontend (Id.toSessionId id)
+
+
 fromFrontendTimed : Time.Posix -> Id -> ToBackend -> BackendModel -> ( BackendModel, Cmd BackendMsg, Bool )
 fromFrontendTimed now id msg model =
     case msg of
         TBUpsertGame data ->
             if String.isEmpty data.username then
-                ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty user name", False )
+                ( model, sendToFrontend id <| TFError "Invalid empty user name", False )
 
             else if String.isEmpty data.gameName then
-                ( model, Lamdera.sendToFrontend id <| TFError "Invalid empty game name", False )
+                ( model, sendToFrontend id <| TFError "Invalid empty game name", False )
 
             else
                 let
+                    gameName =
+                        GameName.fromString data.gameName
+
                     newGame =
-                        case Dict.get (GameName.fromString data.gameName) model.games of
+                        case GameName.dict.get gameName model.games of
                             Just game ->
                                 case game of
                                     BackendPreparing preparing ->
                                         BackendPreparing
                                             { preparing
                                                 | players =
-                                                    Dict.insert id
+                                                    Id.dict.insert id
                                                         { ready = False
                                                         , code = []
                                                         , username = data.username
@@ -157,10 +167,10 @@ fromFrontendTimed now id msg model =
                                     }
                 in
                 ( { model
-                    | inGame = Dict.insert id data.gameName model.inGame
-                    , games = Dict.insert (normalizeGameName data.gameName) newGame model.games
+                    | inGame = GameDict.addPlayerToGame id gameName model.inGame
+                    , games = GameName.dict.insert gameName newGame model.games
                   }
-                , Lamdera.sendToFrontend id <| TFReplaceModel <| Tuple.second <| toInnerFrontendModel id data.gameName newGame
+                , sendToFrontend id <| TFReplaceModel <| Tuple.second <| toInnerFrontendModel id data.gameName newGame
                 , True
                 )
 
@@ -348,7 +358,7 @@ fromFrontendTimed now id msg model =
 
         TBHome ->
             ( { model | inGame = Dict.remove id model.inGame }
-            , Lamdera.sendToFrontend id <| TFReplaceModel (FrontendHomepage defaultHomepageModel)
+            , sendToFrontend id <| TFReplaceModel (FrontendHomepage defaultHomepageModel)
             , False
             )
 
@@ -392,7 +402,7 @@ fromFrontendTimed now id msg model =
                     ids
                         |> List.map
                             (\pid ->
-                                Lamdera.sendToFrontend pid (TFReplaceModel (FrontendHomepage defaultHomepageModel))
+                                sendToFrontend pid (TFReplaceModel (FrontendHomepage defaultHomepageModel))
                             )
                         |> Cmd.batch
             in
@@ -402,21 +412,21 @@ fromFrontendTimed now id msg model =
             )
 
 
-sendToAdmin : BackendModel -> Id -> Cmd msg
+sendToAdmin : BackendModel -> ClientId -> Cmd msg
 sendToAdmin model id =
-    Lamdera.sendToFrontend id <|
+    sendToFrontend id <|
         TFReplaceModel <|
             FrontendAdminAuthenticated <|
                 toAdminModel model.games
 
 
-toAdminModel : Dict String BackendGameModel -> FrontendAdminModel
+toAdminModel : Any.Dict.Dict GameName BackendGameModel String -> FrontendAdminModel
 toAdminModel games =
     games
-        |> Dict.toList
+        |> GameName.dict.toList
         |> List.foldl
             (\( gameName, game ) acc ->
-                case toInnerFrontendModel "admin" (GameName gameName) game of
+                case toInnerFrontendModel (Id.fromSessionId "admin") gameName game of
                     ( lastAction, FrontendPreparing preparing ) ->
                         { acc | preparing = ( lastAction, preparing ) :: acc.preparing }
 
@@ -455,9 +465,9 @@ getOpponent id dict =
     go (keys ++ List.take 1 keys)
 
 
-toId : SessionId -> ClientId -> SessionId
+toId : SessionId -> ClientId -> Id
 toId sessionId _ =
-    sessionId
+    Id.fromSessionId sessionId
 
 
 defaultHomepageModel : FrontendHomepageModel
@@ -568,12 +578,12 @@ updateGame :
     -> (BackendPlayingModel -> ( BackendGameModel, Cmd msg ))
     -> ( BackendModel, Cmd msg, Bool )
 updateGame id model updatePreparing updatePlaying =
-    case Dict.get id model.inGame of
+    case GameDict.getGameFor id model.inGame of
         Nothing ->
             ( model, Cmd.none, False )
 
         Just gameName ->
-            case Dict.get (normalizeGameName gameName) model.games of
+            case GameName.dict.get gameName model.games of
                 Nothing ->
                     ( model, Cmd.none, False )
 
@@ -595,7 +605,7 @@ updateGame id model updatePreparing updatePlaying =
                             toInnerFrontendModel cid gameName newGame
                                 |> Tuple.second
                                 |> TFReplaceModel
-                                |> Lamdera.sendToFrontend cid
+                                |> sendToFrontend cid
                     in
                     ( { model | games = Dict.insert (normalizeGameName gameName) newGame model.games }
                     , playerIds

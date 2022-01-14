@@ -17,6 +17,7 @@ import Lamdera
 import Task
 import Theme exposing (Attribute, Element)
 import Types exposing (..)
+import Types.GameName as GameName exposing (GameName)
 import Url exposing (Url)
 import Url.Parser
 
@@ -49,8 +50,7 @@ urlParser =
             (\s ->
                 Url.percentDecode s
                     |> Maybe.withDefault s
-                    |> String.replace "-" " "
-                    |> GameName
+                    |> GameName.fromString
                     |> FrontendConnecting
             )
             Url.Parser.string
@@ -63,7 +63,7 @@ init url key =
       , inner =
             url
                 |> Url.Parser.parse urlParser
-                |> Maybe.withDefault (FrontendConnecting <| GameName "")
+                |> Maybe.withDefault (FrontendConnecting <| GameName.fromString "")
       , error = ""
       , colorblindMode = False
       , rootUrl = getRootUrl url

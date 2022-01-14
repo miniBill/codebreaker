@@ -27,15 +27,17 @@ module Types exposing
     , sharedPreparingParse
     )
 
+import Any.Dict
+import Any.Set
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
 import Lamdera exposing (ClientId, SessionId)
 import Set exposing (Set)
 import Time
-import Types.GameDict as GameDict exposing (GameDict)
-import Types.GameName as GameName exposing (GameName)
-import Types.Id as Id exposing (Id)
+import Types.GameDict exposing (GameDict)
+import Types.GameName exposing (GameName)
+import Types.Id exposing (Id)
 import Url exposing (Url)
 
 
@@ -81,7 +83,7 @@ type alias FrontendPreparingModel =
     { shared : SharedPreparingModel
     , gameName : GameName
     , me : ( Id, PreparingUser )
-    , players : Dict SessionId { username : String, ready : Bool }
+    , players : Any.Dict.Dict Id { username : String, ready : Bool } String
     }
 
 
@@ -94,7 +96,7 @@ type alias PreparingUser =
 
 type alias BackendPreparingModel =
     { shared : SharedPreparingModel
-    , players : Dict Id PreparingUser
+    , players : Any.Dict.Dict Id PreparingUser String
     , lastAction : Time.Posix
     }
 
@@ -143,7 +145,7 @@ type alias Context =
 
 type alias BackendModel =
     { inGame : GameDict
-    , games : Dict String BackendGameModel
+    , games : Any.Dict.Dict GameName BackendGameModel String
     , connected : Dict SessionId (Set ClientId)
     , adminSessions : Set ClientId
     }

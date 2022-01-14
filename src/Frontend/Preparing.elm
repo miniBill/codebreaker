@@ -1,6 +1,5 @@
 module Frontend.Preparing exposing (view)
 
-import Dict
 import Element.WithContext as Element exposing (Color, centerX, el, padding, text)
 import Element.WithContext.Border as Border
 import Element.WithContext.Font as Font
@@ -10,6 +9,7 @@ import Html.Attributes
 import List.Extra
 import Theme exposing (Element)
 import Types exposing (FrontendMsg(..), FrontendPreparingModel, SharedPreparingModel, sharedPreparingParse)
+import Types.Id as Id
 
 
 view : { a | rootUrl : String, colorblindMode : Bool } -> FrontendPreparingModel -> List (Element FrontendMsg)
@@ -178,7 +178,7 @@ boolToInt b =
 viewOthers : FrontendPreparingModel -> List (Element msg)
 viewOthers preparingModel =
     preparingModel.players
-        |> Dict.toList
+        |> Id.dict.toList
         |> List.filter (\( id, _ ) -> id /= Tuple.first preparingModel.me)
         |> List.map
             (\( _, { username, ready } ) ->

@@ -1,20 +1,36 @@
-module Types.GameDict exposing (GameDict, empty, getGameFor)
+module Types.GameDict exposing (GameDict, addPlayerToGame, empty, getGameFor)
 
-import Dict exposing (Dict)
-import Set exposing (Set)
-import Types.GameName exposing (GameName)
+import Any.Dict
+import Any.Set
+import Types.GameName as GameName exposing (GameName)
 import Types.Id as Id exposing (Id)
 
 
 type GameDict
-    = GameDict (Dict String GameName) (Dict String (Set String))
+    = GameDict (Any.Dict.Dict Id GameName String) (Any.Dict.Dict GameName (Any.Set.Set Id String) String)
 
 
 empty : GameDict
 empty =
-    GameDict Dict.empty Dict.empty
+    GameDict Id.dict.empty GameName.dict.empty
 
 
 getGameFor : Id -> GameDict -> Maybe GameName
 getGameFor id (GameDict forward _) =
-    Dict.get (Id.toSessionId id) forward
+    Id.dict.get id forward
+
+
+addPlayerToGame : Id -> GameName -> GameDict -> GameDict
+addPlayerToGame id gameName (GameDict forward backward) =
+    GameDict
+        (Id.dict.insert id gameName forward)
+        (GameName.dict.map
+            (\gn ->
+                if gn == gameName then
+                    Id.set.insert id
+
+                else
+                    Id.set.remove id
+            )
+            backward
+        )

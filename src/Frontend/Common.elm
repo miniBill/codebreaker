@@ -7,6 +7,7 @@ import Element.WithContext.Input as Input
 import List.Extra
 import Theme exposing (Attribute, Element)
 import Types exposing (..)
+import Types.GameName as GameName exposing (GameName)
 import Url.Builder
 
 
@@ -88,5 +89,5 @@ padCode codeLength code =
 gameNameToUrl : GameName -> String
 gameNameToUrl gameName =
     Url.Builder.absolute
-        [ String.replace " " "-" (normalizeGameName gameName) ]
+        [ String.replace " " "-" (GameName.toString gameName) ]
         []
