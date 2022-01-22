@@ -1,13 +1,11 @@
-module Types.GameDict exposing (GameDict, addPlayerToGame, empty, getGameFor)
+module Types.GameDict exposing (GameDict, addPlayerToGame, empty, getGameFor, getIdsFor, remove)
 
-import Any.Dict
-import Any.Set
 import Types.GameName as GameName exposing (GameName)
 import Types.Id as Id exposing (Id)
 
 
 type GameDict
-    = GameDict (Any.Dict.Dict Id GameName String) (Any.Dict.Dict GameName (Any.Set.Set Id String) String)
+    = GameDict (Id.Dict GameName) (GameName.Dict Id.Set)
 
 
 empty : GameDict
@@ -34,3 +32,19 @@ addPlayerToGame id gameName (GameDict forward backward) =
             )
             backward
         )
+
+
+getIdsFor : GameName -> GameDict -> Id.Set
+getIdsFor gameName (GameDict _ backward) =
+    GameName.dict.get gameName backward
+        |> Maybe.withDefault Id.set.empty
+
+
+remove : Id -> GameDict -> GameDict
+remove id ((GameDict forward backward) as original) =
+    case Id.dict.get id forward of
+        Nothing ->
+            original
+
+        Just gameName ->
+            GameDict (Id.dict.remove id forward) (GameName.dict.remove gameName backward)

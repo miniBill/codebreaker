@@ -27,8 +27,6 @@ module Types exposing
     , sharedPreparingParse
     )
 
-import Any.Dict
-import Any.Set
 import Browser exposing (UrlRequest)
 import Browser.Navigation exposing (Key)
 import Dict exposing (Dict)
@@ -36,8 +34,8 @@ import Lamdera exposing (ClientId, SessionId)
 import Set exposing (Set)
 import Time
 import Types.GameDict exposing (GameDict)
-import Types.GameName exposing (GameName)
-import Types.Id exposing (Id)
+import Types.GameName as GameName exposing (GameName)
+import Types.Id as Id exposing (Id)
 import Url exposing (Url)
 
 
@@ -72,10 +70,21 @@ type alias SharedPreparingModel =
     }
 
 
-sharedPreparingParse : { a | codeLength : String, colors : Int } -> { codeLength : Int, colors : Int }
+sharedPreparingParse :
+    { a
+        | codeLength : String
+        , colors : Int
+        , canonicalName : String
+    }
+    ->
+        { codeLength : Int
+        , colors : Int
+        , canonicalName : String
+        }
 sharedPreparingParse shared =
     { codeLength = Maybe.withDefault 4 <| String.toInt shared.codeLength
     , colors = shared.colors
+    , canonicalName = shared.canonicalName
     }
 
 
@@ -83,7 +92,7 @@ type alias FrontendPreparingModel =
     { shared : SharedPreparingModel
     , gameName : GameName
     , me : ( Id, PreparingUser )
-    , players : Any.Dict.Dict Id { username : String, ready : Bool } String
+    , players : Id.Dict { username : String, ready : Bool }
     }
 
 
@@ -96,7 +105,7 @@ type alias PreparingUser =
 
 type alias BackendPreparingModel =
     { shared : SharedPreparingModel
-    , players : Any.Dict.Dict Id PreparingUser String
+    , players : Id.Dict PreparingUser
     , lastAction : Time.Posix
     }
 
@@ -105,7 +114,7 @@ type alias SharedPlayingModel =
     { colors : Int
     , codeLength : Int
     , startTime : Time.Posix
-    , players : Dict ClientId SharedPlayingPlayerModel
+    , players : Id.Dict SharedPlayingPlayerModel
     , canonicalName : String
     }
 
@@ -114,7 +123,7 @@ type alias SharedPlayingPlayerModel =
     { username : String
     , history : PlayerMoves
     , model : PlayerModel
-    , opponentId : String
+    , opponentId : Id
     }
 
 
@@ -122,13 +131,13 @@ type alias FrontendPlayingModel =
     { shared : SharedPlayingModel
     , gameName : GameName
     , code : Maybe Code
-    , me : ClientId
+    , me : Id
     }
 
 
 type alias BackendPlayingModel =
     { shared : SharedPlayingModel
-    , codes : Dict ClientId Code
+    , codes : Id.Dict Code
     , lastAction : Time.Posix
     }
 
@@ -145,9 +154,9 @@ type alias Context =
 
 type alias BackendModel =
     { inGame : GameDict
-    , games : Any.Dict.Dict GameName BackendGameModel String
+    , games : GameName.Dict BackendGameModel
     , connected : Dict SessionId (Set ClientId)
-    , adminSessions : Set ClientId
+    , adminSessions : Id.Set
     }
 
 

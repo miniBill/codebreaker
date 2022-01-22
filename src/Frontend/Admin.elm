@@ -1,7 +1,6 @@
 module Frontend.Admin exposing (authenticated, authenticating, update)
 
 import DateFormat
-import Dict
 import Element.WithContext as Element exposing (Length, centerY, el, fill, padding, shrink, table, text, width)
 import Element.WithContext.Border as Border
 import Element.WithContext.Extra exposing (onEnter)
@@ -10,7 +9,9 @@ import Element.WithContext.Input as Input
 import Lamdera
 import Theme exposing (Attribute, Element)
 import Time
-import Types exposing (AdminMsg(..), FrontendAdminModel, FrontendMsg(..), FrontendPlayingModel, FrontendPreparingModel, GameName, PlayerModel(..), ToBackend(..))
+import Types exposing (AdminMsg(..), FrontendAdminModel, FrontendMsg(..), FrontendPlayingModel, FrontendPreparingModel, PlayerModel(..), ToBackend(..))
+import Types.GameName as GameName exposing (GameName)
+import Types.Id as Id
 
 
 authenticated : FrontendAdminModel -> List (Element AdminMsg)
@@ -86,7 +87,7 @@ gameNameColumn : Column { a | gameName : GameName } msg
 gameNameColumn =
     simpleColumn
         { header = "Game name"
-        , view = \{ gameName } -> Types.rawGameName gameName
+        , view = \{ gameName } -> GameName.toString gameName
         }
 
 
@@ -120,7 +121,7 @@ playersColumnPreparing =
     , view =
         \( _, { players } ) ->
             players
-                |> Dict.values
+                |> Id.dict.values
                 |> List.map
                     (\{ username, ready } ->
                         if ready then
@@ -141,7 +142,7 @@ playersColumnPlaying =
     , view =
         \( _, { shared } ) ->
             shared.players
-                |> Dict.values
+                |> Id.dict.values
                 |> List.map
                     (\{ username, model } ->
                         case model of

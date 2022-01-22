@@ -1,7 +1,7 @@
 module Backend exposing (app)
 
 import Any.Dict
-import Dict exposing (Dict)
+import Dict
 import Env
 import Lamdera exposing (ClientId, SessionId)
 import List.Extra
@@ -34,7 +34,7 @@ init =
     ( { inGame = GameDict.empty
       , games = GameName.dict.empty
       , connected = Dict.empty
-      , adminSessions = Set.empty
+      , adminSessions = Id.set.empty
       }
     , Cmd.none
     )
@@ -56,7 +56,7 @@ update msg model =
               }
             , (case GameDict.getGameFor id model.inGame of
                 Nothing ->
-                    if Set.member clientId model.adminSessions then
+                    if Id.set.member id model.adminSessions then
                         FrontendAdminAuthenticated (toAdminModel model.games)
 
                     else
@@ -75,6 +75,10 @@ update msg model =
             )
 
         ClientDisconnected sessionId clientId ->
+            let
+                id =
+                    toId sessionId clientId
+            in
             ( { model
                 | connected =
                     Dict.update sessionId
@@ -92,7 +96,7 @@ update msg model =
                             )
                         )
                         model.connected
-                , adminSessions = Set.remove clientId model.adminSessions
+                , adminSessions = Id.set.remove id model.adminSessions
               }
             , Cmd.none
             )
@@ -104,14 +108,14 @@ update msg model =
             in
             ( model_
             , if shouldSendToAdmin then
-                Cmd.batch <| cmd :: List.map (sendToAdmin model_) (Set.toList model_.adminSessions)
+                Cmd.batch <| cmd :: List.map (sendToAdmin model_) (Id.set.toList model_.adminSessions)
 
               else
                 cmd
             )
 
 
-sendToFrontend : Id -> ToFrontend -> Cmd BackendMsg
+sendToFrontend : Id -> ToFrontend -> Cmd msg
 sendToFrontend id =
     Lamdera.sendToFrontend (Id.toSessionId id)
 
@@ -156,9 +160,10 @@ fromFrontendTimed now id msg model =
                                     { shared =
                                         { colors = 8
                                         , codeLength = ""
+                                        , canonicalName = data.gameName
                                         }
                                     , players =
-                                        Dict.singleton id
+                                        Id.dict.singleton id
                                             { ready = False
                                             , code = []
                                             , username = data.username
@@ -170,7 +175,10 @@ fromFrontendTimed now id msg model =
                     | inGame = GameDict.addPlayerToGame id gameName model.inGame
                     , games = GameName.dict.insert gameName newGame model.games
                   }
-                , sendToFrontend id <| TFReplaceModel <| Tuple.second <| toInnerFrontendModel id data.gameName newGame
+                , sendToFrontend id <|
+                    TFReplaceModel <|
+                        Tuple.second <|
+                            toInnerFrontendModel id gameName newGame
                 , True
                 )
 
@@ -188,7 +196,7 @@ fromFrontendTimed now id msg model =
                     in
                     ( { preparing
                         | players =
-                            Dict.update
+                            Id.dict.update
                                 id
                                 (Maybe.map setCode)
                                 preparing.players
@@ -215,7 +223,7 @@ fromFrontendTimed now id msg model =
                         | shared =
                             { shared
                                 | players =
-                                    Dict.update
+                                    Id.dict.update
                                         id
                                         (Maybe.map setCode)
                                         shared.players
@@ -238,25 +246,26 @@ fromFrontendTimed now id msg model =
                         newGame =
                             { preparing
                                 | players =
-                                    Dict.update
+                                    Id.dict.update
                                         id
                                         (Maybe.map setReady)
                                         preparing.players
                                 , lastAction = now
                             }
                     in
-                    if Dict.size newGame.players >= 2 && List.all .ready (Dict.values newGame.players) then
+                    if Id.dict.size newGame.players >= 2 && List.all .ready (Id.dict.values newGame.players) then
                         let
                             shared =
                                 sharedPreparingParse newGame.shared
-                        in
-                        ( { codes = Dict.map (\_ { code } -> code) newGame.players
-                          , shared =
+
+                            newShared : SharedPlayingModel
+                            newShared =
                                 { colors = shared.colors
                                 , codeLength = shared.codeLength
                                 , startTime = now
+                                , canonicalName = shared.canonicalName
                                 , players =
-                                    Dict.map
+                                    Id.dict.map
                                         (\pid { username } ->
                                             { username = username
                                             , history = []
@@ -266,9 +275,15 @@ fromFrontendTimed now id msg model =
                                         )
                                         newGame.players
                                 }
-                          , lastAction = now
-                          }
-                            |> BackendPlaying
+
+                            playing : BackendPlayingModel
+                            playing =
+                                { codes = Id.dict.map (\_ { code } -> code) newGame.players
+                                , shared = newShared
+                                , lastAction = now
+                                }
+                        in
+                        ( BackendPlaying playing
                         , Cmd.none
                         )
 
@@ -276,7 +291,7 @@ fromFrontendTimed now id msg model =
                         ( BackendPreparing newGame, Cmd.none )
                 )
                 (\({ shared } as playing) ->
-                    case Dict.get id shared.players of
+                    case Id.dict.get id shared.players of
                         Nothing ->
                             ( BackendPlaying playing, Cmd.none )
 
@@ -288,7 +303,7 @@ fromFrontendTimed now id msg model =
                                 Guessing { current } ->
                                     let
                                         code =
-                                            Dict.get player.opponentId playing.codes |> Maybe.withDefault []
+                                            Id.dict.get player.opponentId playing.codes |> Maybe.withDefault []
 
                                         answer =
                                             getAnswer code current
@@ -307,7 +322,7 @@ fromFrontendTimed now id msg model =
                                     ( { playing
                                         | shared =
                                             { shared
-                                                | players = Dict.insert id newPlayer shared.players
+                                                | players = Id.dict.insert id newPlayer shared.players
                                             }
                                         , lastAction = now
                                       }
@@ -331,14 +346,15 @@ fromFrontendTimed now id msg model =
                                     Guessing _ ->
                                         False
                             )
-                            (Dict.values shared.players)
+                            (Id.dict.values shared.players)
                     then
                         ( { shared =
                                 { codeLength = String.fromInt playing.shared.codeLength
                                 , colors = playing.shared.colors
+                                , canonicalName = shared.canonicalName
                                 }
                           , players =
-                                Dict.map
+                                Id.dict.map
                                     (\_ { username } ->
                                         { code = []
                                         , ready = False
@@ -357,7 +373,7 @@ fromFrontendTimed now id msg model =
                 )
 
         TBHome ->
-            ( { model | inGame = Dict.remove id model.inGame }
+            ( { model | inGame = GameDict.remove id model.inGame }
             , sendToFrontend id <| TFReplaceModel (FrontendHomepage defaultHomepageModel)
             , False
             )
@@ -368,7 +384,10 @@ fromFrontendTimed now id msg model =
                 (\preparing ->
                     ( { preparing
                         | shared = shared
-                        , players = Dict.map (\_ player -> { player | ready = False, code = [] }) preparing.players
+                        , players =
+                            Id.dict.map
+                                (\_ player -> { player | ready = False, code = [] })
+                                preparing.players
                         , lastAction = now
                       }
                         |> BackendPreparing
@@ -379,7 +398,7 @@ fromFrontendTimed now id msg model =
 
         TBAdminAuthenticate password ->
             if password == Env.adminPassword then
-                ( { model | adminSessions = Set.insert id model.adminSessions }
+                ( { model | adminSessions = Id.set.insert id model.adminSessions }
                 , sendToAdmin model id
                 , False
                 )
@@ -389,30 +408,25 @@ fromFrontendTimed now id msg model =
 
         TBAdmin (AdminDelete gameName) ->
             let
-                normalized =
-                    normalizeGameName gameName
-
                 ids =
-                    model.inGame
-                        |> Dict.toList
-                        |> List.filter (\( _, name ) -> normalizeGameName name == normalized)
-                        |> List.map Tuple.first
+                    GameDict.getIdsFor gameName model.inGame
 
                 cmds =
                     ids
+                        |> Id.set.toList
                         |> List.map
                             (\pid ->
                                 sendToFrontend pid (TFReplaceModel (FrontendHomepage defaultHomepageModel))
                             )
                         |> Cmd.batch
             in
-            ( { model | games = Dict.remove normalized model.games }
+            ( { model | games = GameName.dict.remove gameName model.games }
             , cmds
             , True
             )
 
 
-sendToAdmin : BackendModel -> ClientId -> Cmd msg
+sendToAdmin : BackendModel -> Id -> Cmd msg
 sendToAdmin model id =
     sendToFrontend id <|
         TFReplaceModel <|
@@ -441,16 +455,16 @@ toAdminModel games =
             }
 
 
-getOpponent : Id -> Dict Id a -> Id
+getOpponent : Id -> Id.Dict a -> Id
 getOpponent id dict =
     let
         keys =
-            Dict.keys dict
+            Id.dict.keys dict
 
         go x =
             case x of
                 [] ->
-                    ""
+                    Id.fromSessionId ""
 
                 [ q ] ->
                     q
@@ -472,7 +486,7 @@ toId sessionId _ =
 
 defaultHomepageModel : FrontendHomepageModel
 defaultHomepageModel =
-    { gameName = GameName ""
+    { gameName = ""
     , username = ""
     }
 
@@ -483,7 +497,7 @@ toInnerFrontendModel id gameName game =
         BackendPreparing preparing ->
             let
                 player =
-                    Dict.get id preparing.players
+                    Id.dict.get id preparing.players
                         |> Maybe.withDefault
                             { username = ""
                             , code = []
@@ -496,7 +510,7 @@ toInnerFrontendModel id gameName game =
                 , gameName = gameName
                 , me = ( id, player )
                 , players =
-                    Dict.map
+                    Id.dict.map
                         (\_ { username, ready } ->
                             { username = username
                             , ready = ready
@@ -511,7 +525,7 @@ toInnerFrontendModel id gameName game =
             , FrontendPlaying
                 { shared = playing.shared
                 , me = id
-                , code = Dict.get id playing.codes
+                , code = Id.dict.get id playing.codes
                 , gameName = gameName
                 }
             )
@@ -593,12 +607,12 @@ updateGame id model updatePreparing updatePlaying =
                             case game of
                                 BackendPreparing preparing ->
                                     ( updatePreparing preparing
-                                    , Dict.keys preparing.players
+                                    , Id.dict.keys preparing.players
                                     )
 
                                 BackendPlaying playing ->
                                     ( updatePlaying playing
-                                    , Dict.keys playing.shared.players
+                                    , Id.dict.keys playing.shared.players
                                     )
 
                         send cid =
@@ -607,7 +621,7 @@ updateGame id model updatePreparing updatePlaying =
                                 |> TFReplaceModel
                                 |> sendToFrontend cid
                     in
-                    ( { model | games = Dict.insert (normalizeGameName gameName) newGame model.games }
+                    ( { model | games = GameName.dict.insert gameName newGame model.games }
                     , playerIds
                         |> List.map send
                         |> (::) additionalCmd

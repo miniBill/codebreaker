@@ -192,12 +192,12 @@ updateFromBackend msg model =
                 ( inner_, cmd ) =
                     case ( model.inner, inner ) of
                         ( FrontendConnecting gameName, FrontendHomepage homepage ) ->
-                            ( if gameName == GameName "admin" then
+                            ( if gameName == adminGame then
                                 FrontendAdminAuthenticating ""
 
                               else
-                                FrontendHomepage { homepage | gameName = gameName }
-                            , if normalizeGameName gameName == "" then
+                                FrontendHomepage { homepage | gameName = GameName.toString gameName }
+                            , if GameName.toString gameName == "" then
                                 focus ids.gamename
 
                               else
@@ -236,7 +236,7 @@ getGameName model =
             gameName
 
         FrontendHomepage { gameName } ->
-            gameName
+            GameName.fromString gameName
 
         FrontendPreparing { gameName } ->
             gameName
@@ -245,10 +245,15 @@ getGameName model =
             gameName
 
         FrontendAdminAuthenticating _ ->
-            GameName "admin"
+            adminGame
 
         FrontendAdminAuthenticated _ ->
-            GameName "admin"
+            adminGame
+
+
+adminGame : GameName
+adminGame =
+    GameName.fromString "admin"
 
 
 outerView : FrontendModel -> Browser.Document FrontendMsg
@@ -367,9 +372,9 @@ viewHomepage error homepageModel =
         [ Theme.input [ Extra.onEnter UpsertGame, idAttribute ids.gamename ]
             { validate = always True
             , label = "Game name"
-            , text = rawGameName homepageModel.gameName
+            , text = homepageModel.gameName
             , placeholder = "Game name"
-            , onChange = \newGameName -> HomepageMsg { homepageModel | gameName = GameName newGameName }
+            , onChange = \newGameName -> HomepageMsg { homepageModel | gameName = newGameName }
             }
         , Theme.input [ Extra.onEnter UpsertGame, idAttribute ids.username ]
             { validate = always True
@@ -408,23 +413,22 @@ ids =
 title : FrontendModel -> String
 title { inner } =
     let
-        fromGame gameName =
-            case rawGameName gameName of
-                "" ->
-                    "Codebreaker!"
+        fromGameName gameName =
+            if String.isEmpty gameName then
+                "Codebreaker!"
 
-                rawName ->
-                    "Codebreaker! - " ++ rawName
+            else
+                "Codebreaker! - " ++ gameName
     in
     case inner of
-        FrontendPlaying { gameName } ->
-            fromGame gameName
+        FrontendPlaying { shared } ->
+            fromGameName shared.canonicalName
 
-        FrontendPreparing { gameName } ->
-            fromGame gameName
+        FrontendPreparing { shared } ->
+            fromGameName shared.canonicalName
 
         FrontendHomepage { gameName } ->
-            fromGame gameName
+            fromGameName gameName
 
         FrontendAdminAuthenticating _ ->
             ""

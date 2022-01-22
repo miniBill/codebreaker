@@ -1,4 +1,4 @@
-module Types.GameName exposing (GameName, dict, fromString, set, toString)
+module Types.GameName exposing (Dict, GameName, Set, dict, fromString, set, toString)
 
 import Any.Dict as Dict
 import Any.Set as Set
@@ -6,6 +6,14 @@ import Any.Set as Set
 
 type GameName
     = GameName String
+
+
+type alias Set =
+    Set.Set GameName String
+
+
+type alias Dict v =
+    Dict.Dict GameName v String
 
 
 toString : GameName -> String
@@ -17,11 +25,15 @@ fromString : String -> GameName
 fromString str =
     let
         cutSpaces s =
-            if String.contains "  " s then
-                cutSpaces (String.replace "  " " " s)
+            let
+                repl =
+                    String.replace "  " " " s
+            in
+            if s == repl then
+                s
 
             else
-                s
+                cutSpaces repl
     in
     String.toLower str
         |> cutSpaces

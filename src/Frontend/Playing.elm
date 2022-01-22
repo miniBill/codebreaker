@@ -1,6 +1,5 @@
 module Frontend.Playing exposing (view)
 
-import Dict
 import Element.WithContext as Element exposing (alignBottom, alignRight, alignTop, centerX, el, fill, height, padding, paragraph, px, spacing, text, width)
 import Element.WithContext.Background as Background
 import Element.WithContext.Border as Border
@@ -10,13 +9,14 @@ import List.Extra
 import Theme exposing (Element)
 import Time
 import Types exposing (..)
+import Types.Id as Id
 
 
 view : FrontendPlayingModel -> List (Element FrontendMsg)
 view playingModel =
     let
         meViews =
-            case Dict.get playingModel.me playingModel.shared.players of
+            case Id.dict.get playingModel.me playingModel.shared.players of
                 Just me ->
                     viewMePlaying playingModel.shared me
 
@@ -25,7 +25,7 @@ view playingModel =
 
         othersViews =
             playingModel.shared.players
-                |> Dict.toList
+                |> Id.dict.toList
                 |> List.filter (\( i, _ ) -> i /= playingModel.me)
                 |> List.map Tuple.second
                 |> List.map (viewOther playingModel.shared)
@@ -39,7 +39,7 @@ view playingModel =
     , Theme.wrappedRow [ padding 0, centerX ] (meViews ++ othersViews)
     , if
         playingModel.shared.players
-            |> Dict.values
+            |> Id.dict.values
             |> List.all
                 (\{ model } ->
                     case model of
@@ -127,7 +127,7 @@ viewPlayingPlayer : SharedPlayingModel -> SharedPlayingPlayerModel -> List (Elem
 viewPlayingPlayer shared { username, history, model, opponentId } rest =
     let
         opponent =
-            Dict.get opponentId shared.players
+            Id.dict.get opponentId shared.players
                 |> Maybe.map .username
                 |> Maybe.withDefault ""
     in
@@ -143,7 +143,7 @@ viewPlayingPlayer shared { username, history, model, opponentId } rest =
                 Background.color <| Element.rgb 1 1 1
         ]
         ([ el [ Font.bold, centerX ] <| text username
-         , if Dict.size shared.players == 2 then
+         , if Id.dict.size shared.players == 2 then
             Element.none
 
            else

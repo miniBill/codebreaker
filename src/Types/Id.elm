@@ -1,4 +1,4 @@
-module Types.Id exposing (Id, dict, fromSessionId, set, toSessionId)
+module Types.Id exposing (Dict, Id, Set, dict, fromSessionId, set, toSessionId)
 
 import Any.Dict as Dict
 import Any.Set as Set
@@ -7,6 +7,14 @@ import Lamdera exposing (SessionId)
 
 type Id
     = Id SessionId
+
+
+type alias Set =
+    Set.Set Id String
+
+
+type alias Dict v =
+    Dict.Dict Id v String
 
 
 fromSessionId : SessionId -> Id
